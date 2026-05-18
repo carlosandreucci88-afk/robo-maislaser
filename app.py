@@ -68,7 +68,7 @@ st.set_page_config(page_title="Robô Agenda Maislaser", page_icon="✨", layout=
 st.title("🤖 Disparador de Agenda — Maislaser")
 st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmação.")
 
-# SELEÇÃO DE UNIDADE QUE EU TINHA APAGADO
+# SELEÇÃO DE UNIDADE
 unidade_selecionada = st.selectbox("Selecione a Unidade que está operando hoje:", ["Mogi das Cruzes", "Suzano"])
 
 str_alerta = f"📢 Os alertas de agendamento serão enviados para o número: {NUMERO_ALERTA_INTERNO}"
@@ -107,4 +107,36 @@ if arquivo_upload is not None:
                     
                     for index, (idx_orig, linha) in enumerate(df_filtrado.iterrows()):
                         nome_cliente = linha['Cliente']
-                        procedimento = linha
+                        procedimento = linha['Procedimento']
+                        unidade_local = linha['Unidade']
+                        celular_puro = linha['Celular']
+                        
+                        telefone_formatado = limpar_numero(celular_puro)
+                        
+                        if telefone_formatado:
+                            status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
+                            code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_local, telefone_formatado)
+                            
+                            if code == 200 or code == 201:
+                                successes += 1
+                            else:
+                                erros += 1
+                        else:
+                            erros += 1
+                        
+                        # Controle de delay para evitar bloqueios da Meta
+                        time.sleep(1.5)
+                        
+                        # Atualiza a barra de carregamento na tela
+                        progresso.progress((index + 1) / total_linhas)
+                    
+                    status_texto.text("Processamento concluído!")
+                    st.balloons()
+                    st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros/Falhas: {erros}")
+                
+    except Exception as erro_geral:
+        st.error(f"Erro ao processar o arquivo: {erro_geral}")
+
+# Rodapé de controle interno
+st.markdown("---")
+st.caption("Desenvolvido para uso exclusivo interno da Maislaser.")
