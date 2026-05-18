@@ -37,6 +37,9 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
         "Content-Type": "application/json"
     }
     
+    # Força a conversão para string limpa tirando quebras de linha para não quebrar a API
+    procedimento_limpo = str(procedimento).replace('\n', ' ').replace('\r', '').strip()
+    
     payload = {
         "messaging_product": "whatsapp",
         "to": telefone_destino,
@@ -51,7 +54,7 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
                     "type": "body",
                     "parameters": [
                         {"type": "text", "text": str(nome)},          # {{1}} Nome do cliente
-                        {"type": "text", "text": str(procedimento)},  # {{2}} Serviço / Procedimento
+                        {"type": "text", "text": procedimento_limpo},  # {{2}} Serviço / Procedimento
                         {"type": "text", "text": str(unidade)}        # {{3}} Nome da unidade selecionada no site
                     ]
                 }
@@ -80,7 +83,7 @@ arquivo_upload = st.file_uploader("Selecione a planilha do UNO (.xlsx)", type=["
 if arquivo_upload is not None:
     try:
         df = pd.read_excel(arquivo_upload)
-        st.success(f"Planilha carregada com sucesso! Encontrados {len(df)} registros.")
+        total_original = len(df)
         
         # COLUNAS CORRIGIDAS DE ACORDO COM O SEU ARQUIVO REAL
         colunas_necessarias = ['Cliente', 'Serviço', 'Telefone']
@@ -94,6 +97,11 @@ if arquivo_upload is not None:
             df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(list(set(x)))).reset_index()
             # Garante que a ordem das colunas permaneça igual à visualização original
             df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone']]
+            total_agrupado = len(df_agrupado)
+            
+            # Avisos de contagem na tela conforme solicitado
+            st.success(f"Planilha carregada com sucesso! Encontrados {total_original} registros originais.")
+            st.info(f"🔄 Agrupamento concluído: Os serviços foram unidos por cliente. No total, serão disparadas apenas {total_agrupado} mensagens.")
             
             st.subheader(f"Visualização dos dados para envio ({unidade_selecionada}):")
             st.dataframe(df_agrupado.head())
