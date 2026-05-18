@@ -35,12 +35,6 @@ if unidade != "Clique para selecionar...":
         st.markdown("---")
         st.success(f"✅ Configuração concluída! Alertas serão enviados para o número informado.")
         
-        # Definição das mensagens automáticas por unidade
-        if unidade == "Mogi das Cruzes":
-            mensagem_reagendar_cliente = "Entendido! Para reagendamentos você consegue ligar rapidinho para o numero - (11) 2610-1297."
-        else:
-            mensagem_reagendar_cliente = "Entendido! Para reagendamentos você consegue ligar rapidinho para o numero - (11) 98990-5383."
-        
         # 2. SELEÇÃO DA PLANILHA
         arquivo_excel = st.file_uploader("3. Escolha a planilha do UNO (.xlsx)", type=["xlsx"])
         
@@ -51,35 +45,77 @@ if unidade != "Clique para selecionar...":
                 
                 if "Telefone" in df.columns and "Cliente" in df.columns and "Serviço" in df.columns:
                     
-                    # --- TRATAMENTO E AGRUPAMENTO DOS DADOS ---
-                    # Garante que espaços em branco não atrapalhem o agrupamento
+                    # Tratamento e agrupamento dos dados por Cliente
                     df['Cliente'] = df['Cliente'].astype(str).str.strip()
                     df['Telefone'] = df['Telefone'].astype(str).str.strip()
                     df['Serviço'] = df['Serviço'].astype(str).str.strip()
                     
-                    # Agrupa por Cliente e Telefone, juntando os Serviços com uma vírgula
                     df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(x)).reset_index()
                     
-                    st.write(f"### Pré-visualização dos Clientes Agrupados (Total único: {len(df_agrupado)}):")
-                    st.dataframe(df_agrupado.head())
+                    st.write(f"### Clientes Agrupados Prontos para Envio (Total: {len(df_agrupado)}):")
+                    st.dataframe(df_agrupado)
                     
-                    # Botão de disparo
-                    if st.button(f"🚀 Iniciar Disparos para {unidade}"):
+                    # Botão de disparo real
+                    if st.button(f"🚀 Iniciar Disparos Reais para {unidade}"):
                         sucessos = 0
                         erros = 0
                         
-                        # Loop usando a lista tratada e agrupada
+                        url_api = f"https://graph.facebook.com/v18.0/{ID_TELEFONE_META}/messages"
+                        headers = {
+                            "Authorization": f"Bearer {TOKEN_META}",
+                            "Content-Type": "application/json"
+                        }
+                        
+                        progresso = st.progress(0)
+                        status_texto = st.empty()
+                        
                         for index, linha in df_agrupado.iterrows():
                             nome_cliente = linha["Cliente"]
-                            telefone_cliente = linha["Telefone"]
-                            servicos_cliente = linha["Serviço"] # Aqui tem todas as áreas juntas!
+                            servicos_cliente = linha["Serviço"]
                             
-                            # O robô agora envia uma única mensagem contendo a lista de 'servicos_cliente'
-                            # Exemplo lógico interno: "Olá {nome_cliente}, confirmando seu horário para {servicos_cliente}?"
+                            # Limpa o telefone do cliente deixando apenas números e garante o código do país (55)
+                            tel_limpo = re.sub(r'\D', '', linha["Telefone"])
+                            if not tel_limpo.startswith("55"):
+                                tel_limpo = "55" + tel_limpo
                             
-                            sucessos += 1
+                            # Montagem do payload oficial da API da Meta baseado no seu Template aprovado
+                            payload = {
+                                "messaging_product": "whatsapp",
+                                "to": tel_limpo,
+                                "type": "template",
+                                "template": {
+                                    "name": "confirmacao_agendamento",
+                                    "language": {
+                                        "code": "pt_BR"
+                                        },
+                                    "components": [
+                                        {
+                                            "type": "body",
+                                            "parameters": [
+                                                {"type": "text", "text": nome_cliente},       # {{1}} Nome
+                                                {"type": "text", "text": servicos_cliente},   # {{2}} Áreas/Serviços
+                                                {"type": "text", "text": unidade}             # {{3}} Unidade (Mogi/Suzano)
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
                             
-                        st.success(f"Disparos finalizados com agrupamento! Total de clientes únicos avisados: {sucessos} | Erros: {erros}")
+                            # Envio real do pacote para os servidores da Meta
+                            resposta = requests.post(url_api, headers=headers, json=payload)
+                            
+                            if resposta.status_code == 200 or resposta.status_code == 201:
+                                sucessos += 1
+                            else:
+                                erros += 1
+                                st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Resposta da Meta: {resposta.text}")
+                            
+                            # Atualiza a barra de progresso na tela
+                            percentual = (index + 1) / len(df_agrupado)
+                            progresso.progress(percentual)
+                            status_texto.text(f"Processando: {index + 1}/{len(df_agrupado)}")
+                            
+                        st.success(f"🎉 Disparos finalizados! Sucessos: {sucessos} | Erros: {erros}")
                 else:
                     st.error("❌ Erro: Certifique-se que a planilha possui as colunas 'Cliente', 'Telefone' e 'Serviço'.")
                         
