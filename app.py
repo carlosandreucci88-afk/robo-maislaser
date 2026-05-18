@@ -5,7 +5,7 @@ import re
 
 # CONFIGURAÇÕES FIXAS E OCULTAS (API DA META)
 TOKEN_META = "EAH5107Jgp0EBRbNVSivAMeC4ZCFNxgg7ycMJF0hNsuyfvNmHwgqRI4ZBsJl0YZABeZB2igtb4MvbaxVif6SdM6G5kx5SI8QpLVBNMkXlcesB8FpYCZBX15tZC0d6FoR6qqLqosE8WY51AvH08Y9hyEY9A3ZArj97iA6Q3YI2IxEMJLhEFgB4Jfvj96bPwCaUwZDZD"
-ID_TELEFONE_META = "10894333337592658"
+ID_TELEFONE_META = "3019339098457705"
 
 st.set_page_config(page_title="Painel Maislaser", page_icon="🤖", layout="wide")
 
@@ -72,16 +72,16 @@ if unidade != "Clique para selecionar...":
                         progresso = st.progress(0)
                         status_texto = st.empty()
                         
-                        for index, linha in df_agrupado.iterrows():
-                            nome_cliente = linha["Cliente"]
-                            servicos_cliente = str(linha["Serviço"])
+                        for index, offset in df_agrupado.iterrows():
+                            nome_cliente = offset["Cliente"]
+                            servicos_cliente = str(offset["Serviço"])
                             
                             # Garante que o texto de serviços nunca vá em branco para a Meta
                             if not servicos_cliente or servicos_cliente.lower() in ['nan', 'none', '']:
                                 servicos_cliente = "Sessões agendadas"
                             
                             # Limpa o telefone do cliente e adiciona o código do país
-                            tel_limpo = re.sub(r'\D', '', linha["Telefone"])
+                            tel_limpo = re.sub(r'\D', '', offset["Telefone"])
                             if not tel_limpo.startswith("55"):
                                 tel_limpo = "55" + tel_limpo
                             
@@ -94,7 +94,7 @@ if unidade != "Clique para selecionar...":
                                     "name": "confirmacao_agenda_maislaser",
                                     "language": {
                                         "code": "pt_BR"
-                                    },
+                                        },
                                     "components": [
                                         {
                                             "type": "body",
@@ -115,11 +115,7 @@ if unidade != "Clique para selecionar...":
                                 sucessos += 1
                             else:
                                 erros += 1
-                                # Mensagem Amigável Inteligente que detecta token expirado ou ID inexistente
-                                if "does not exist" in resposta.text or "permissions" in resposta.text:
-                                    st.error(f"❌ Erro Crítico na Meta: O ID do Telefone ({ID_TELEFONE_META}) não foi reconhecido ou o Token permanente não tem acesso a ele. Verifique as permissões 'whatsapp_business_messaging' no Utilizador do Sistema.")
-                                else:
-                                    st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Detalhe da Meta: {resposta.text}")
+                                st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Detalhe da Meta: {resposta.text}")
                             
                             # Atualiza progresso na tela do Streamlit
                             percentual = (index + 1) / len(df_agrupado)
