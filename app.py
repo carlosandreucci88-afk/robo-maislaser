@@ -4,7 +4,7 @@ import requests
 import re
 
 # CONFIGURAÇÕES FIXAS E OCULTAS (API DA META)
-TOKEN_META = "EAH5107Jgp0EBRbNVSivAMeC4ZCFNxgg7ycMJF0hNsuyfvNmHwgqRI4ZBsJl0YZABeZB2igtb4MvbaxVif6SdM6G5kx5SI8QpLVBNMkXlcesB8FpYCZBX15tZC0d6FoR6qqLqosE8WY51AvH08Y9hyEY9A3ZArj97iA6Q3YI2IxEMJLhEFgB4Jfvj96bPwCaUwZDZD"
+TOKEN_META = "EAH5107Jgp0EBRQq8e8P8a2ovJcWn9Ipz51Ep3gtTJ9k07jdc4bEIofn3Ng8rQxME26SGCgaifiXUL8zX78nHZADMZBqsKtn9b9Pl5jLTVh27Q1HBn39DszjsxoZCH2xzGxpxH2aNUr4rNAgXP7mAvEWf5OMMzcmDWnukkqIl9jvJFlp3HyVfBygTMYCbAZDZD"
 ID_TELEFONE_META = "10894333337592658"
 
 st.set_page_config(page_title="Painel Maislaser", page_icon="🤖", layout="wide")
@@ -115,7 +115,8 @@ if unidade != "Clique para selecionar...":
                                 sucessos += 1
                             else:
                                 erros += 1
-                                st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Detalhe da Meta: {resposta.text}")
+                                # Mensagem amigável fixa que nunca mais muda na tela
+                                st.error(f"Erro crítico com as credenciais da Meta ao tentar enviar para {nome_cliente}. Provavelmente seu Token de Acesso expirou lá no painel do Facebook. Por favor, gere um novo Token e atualize o código.")
                             
                             # Atualiza progresso na tela do Streamlit
                             percentual = (index + 1) / len(df_agrupado)
