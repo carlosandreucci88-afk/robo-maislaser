@@ -142,8 +142,11 @@ if arquivo_upload is not None:
                             sucessos += 1
                         else:
                             erros += 1
-                            # Exibe o erro real detalhado retornado pela API da Meta na tela
-                            st.error(f"❌ Falha ao enviar para {nome_cliente} ({telefone_formatado}) | Código HTTP: {code} | Retorno: {json.dumps(res, ensure_ascii=False)}")
+                            # Identifica se a conta de envio está restrita a números de teste no painel Meta
+                            if res.get('error', {}).get('code') == 133010:
+                                st.error(f"❌ Falha ao enviar para {nome_cliente} ({telefone_formatado}) | Erro Meta 133010: Seu número de envio está em modo de teste/sandbox. Cadastre este telefone de destino como número autorizado no painel da Meta ou use um número de envio oficial de produção.")
+                            else:
+                                st.error(f"❌ Falha ao enviar para {nome_cliente} ({telefone_formatado}) | Código HTTP: {code} | Retorno: {json.dumps(res, ensure_ascii=False)}")
                     else:
                         erros += 1
                         st.error(f"⚠️ Número de telefone inválido ou ausente para o cliente: {nome_cliente} (Dado encontrado: {celular_puro})")
