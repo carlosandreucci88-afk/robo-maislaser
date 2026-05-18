@@ -6,7 +6,7 @@ import time
 import re
 
 # CONFIGURAÇÕES DA API DO WHATSAPP (DADOS OFICIAIS DO SEU PAINEL META)
-TOKEN_META = "EAH5107Jgp0EBRaAcZC5MEWYQlq3s8g4RX14XaS2GXp2LoglfkNYwN4S5GQUaG6bP9NLWswIbfItSPBZBoZCHC65UaUde2uqcaWgjFOxkQtMtCZCAvkuju4pZAYitiZBrHESzqgzpg7ZCxn75bauOPmZAM2ZCA8Icg0ZBqBOliQqdy0sIa8Rvw6Y98qOFaqYBjewgZDZD"
+TOKEN_META = "EAH5107Jgp0EBRQEFViE42VOI1DYVl8Gl1DZAr92xnFdvKomZBCkha5jf8xnlYEyi33ZB6vBj0Um8XOEu953ZBZBD6ZBZAhOqr5iqjd7MjHviWlRVIRlDTW7AlkMvYTubZAir2ZBlfTAoUs6bvHldA1xm9vP3LYacstkYO61MvTwChySdif2s41gE8czdrI0ZC77oriBAZDZD"
 ID_TELEFONE_META = "1083951441475080"
 NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
@@ -104,7 +104,7 @@ if arquivo_upload is not None:
             # Limpa cada número individualmente na coluna antes de agrupar para evitar que o pandas mude o tipo
             df['Telefone'] = df['Telefone'].apply(limpar_numero).fillna('').astype(str)
             
-            # Agrupa agora com os telefones já perfeitamente limpos e formatados em string
+            # Agrupa agora com os telefones já perfeitamente limpos e formatados in string
             df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(list(set(x)))).reset_index()
             df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone']]
             total_agrupado = len(df_agrupado)
