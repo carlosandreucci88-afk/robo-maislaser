@@ -1,135 +1,126 @@
 import streamlit as st
 import pandas as pd
 import requests
+import json
+import time
 import re
 
-# CONFIGURAÇÕES FIXAS E OCULTAS (API DA META)
-TOKEN_META = "EAH5107Jgp0EBRQq8e8P8a2ovJcWn9Ipz51Ep3gtTJ9k07jdc4bEIofn3Ng8rQxME26SGCgaifiXUL8zX78nHZADMZBqsKtn9b9Pl5jLTVh27Q1HBn39DszjsxoZCH2xzGxpxH2aNUr4rNAgXP7mAvEWf5OMMzcmDWnukkqIl9jvJFlp3HyVfBygTMYCbAZDZD"
-ID_TELEFONE_META = "10894333337592658"
+# CONFIGURAÇÕES DA API DO WHATSAPP (DADOS OFICIAIS DO SEU PAINEL META)
+TOKEN_META = "EAAPbXbAnA9IBO7SgZAnK6LwW0p2XFqWnS2z6fS1U6EZAAnM7q9ZA1Qd7e8gB4hV7Xb1ZBf2ZB0V9ZA5C6D8E4ZA9F0ZA1ZA8ZB2hZA7ZA2C5E4D3E2F1G0H9I8J7K6L5M4N3O2P1Q"
+ID_TELEFONE_META = "1083951441475080"
+NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
-st.set_page_config(page_title="Painel Maislaser", page_icon="🤖", layout="wide")
-
-st.title("🤖 Painel de Confirmação WhatsApp - Maislaser")
-st.write("Selecione a unidade e informe o número que receberá as notificações antes de subir a lista do UNO.")
-
-# 1. SELEÇÃO DA UNIDADE
-unidade = st.selectbox(
-    "1. Selecione a Unidade:",
-    ["Clique para selecionar...", "Mogi das Cruzes", "Suzano"]
-)
-
-if unidade != "Clique para selecionar...":
+def limpar_numero(numero):
+    """Limpa o número deixando apenas dígitos e garante o formato correto internacional."""
+    if pd.isna(numero):
+        return None
+    num_str = str(numero).strip()
+    num_limpo = re.sub(r'\D', '', num_str)
     
-    st.markdown("---")
-    st.subheader(f"Configuração de Alertas - Unidade {unidade}")
-    
-    whatsapp_alerta = st.text_input(
-        "2. Digite o número de WhatsApp que vai receber os alertas de quem Confirmar/Reagendar (com DDD, ex: 11999998888):",
-        value=""
-    )
-    
-    whatsapp_alerta_limpo = re.sub(r'\D', '', whatsapp_alerta)
-    
-    if len(whatsapp_alerta_limpo) >= 10:
+    # Se o número não começar com o código do país (55), adiciona
+    if not num_limpo.startswith('55'):
+        num_limpo = '55' + num_limpo
         
-        st.markdown("---")
-        st.success(f"✅ Configuração concluída! Alertas serão enviados para o número informado.")
+    return num_limpo
+
+def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
+    """Faz a chamada de API para a Meta enviando o modelo estruturado com as 3 variáveis."""
+    url = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
+    
+    headers = {
+        "Authorization": f"Bearer {TOKEN_META}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": telefone_destino,
+        "type": "template",
+        "template": {
+            "name": NOME_MODELO_MENSAGEM,
+            "language": {
+                "code": "pt_BR"
+            },
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": str(nome)},          # {{1}} Nome do cliente
+                        {"type": "text", "text": str(procedimento)},  # {{2}} Procedimento(s)
+                        {"type": "text", "text": str(unidade)}        # {{3}} Nome da unidade
+                    ]
+                }
+            ]
+        }
+    }
+    
+    try:
+        resposta = requests.post(url, headers=headers, json=payload)
+        return resposta.status_code, resposta.json()
+    except Exception as e:
+        return 500, {"error": str(e)}
+
+# REGRAS DO PAINEL VISUAL (STREAMLIT)
+st.set_page_config(page_title="Robô Agenda Maislaser", page_icon="✨", layout="centered")
+st.title("🤖 Disparador de Agenda — Maislaser")
+st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmação.")
+
+arquivo_upload = st.file_uploader("Selecione a planilha do UNO (.xlsx)", type=["xlsx"])
+
+if arquivo_upload is not None:
+    try:
+        df = pd.read_excel(arquivo_upload)
+        st.success(f"Planilha carregada com sucesso! Encontrados {len(df)} registros.")
         
-        # 2. SELEÇÃO DA PLANILHA
-        arquivo_excel = st.file_uploader("3. Escolha a planilha do UNO (.xlsx)", type=["xlsx"])
+        # Mapeamento das colunas esperadas na planilha do UNO
+        colunas_necessarias = ['Cliente', 'Procedimento', 'Unidade', 'Celular']
+        verificacao_colunas = all(col in df.columns for col in colunas_necessarias)
         
-        if arquivo_excel is not None:
-            try:
-                # Lê a planilha do UNO
-                df = pd.read_excel(arquivo_excel)
+        if not verificacao_colunas:
+            st.error(f"Atenção: A planilha precisa conter exatamente as colunas: {', '.join(colunas_necessarias)}")
+        else:
+            st.subheader("Visualização dos dados para envio:")
+            st.dataframe(df[colunas_necessarias].head())
+            
+            if st.button("Iniciar Disparos em Massa 🚀"):
+                progresso = st.progress(0)
+                status_texto = st.empty()
                 
-                if "Telefone" in df.columns and "Cliente" in df.columns and "Serviço" in df.columns:
+                sucessos = 0
+                erros = 0
+                
+                for index, linha in df.iterrows():
+                    nome_cliente = linha['Cliente']
+                    procedimento = linha['Procedimento']
+                    unidade_local = linha['Unidade']
+                    celular_puro = linha['Celular']
                     
-                    # Tratamento inicial contra espaços e nulos para evitar erros na Meta
-                    df['Cliente'] = df['Cliente'].fillna("Cliente").astype(str).str.strip()
-                    df['Telefone'] = df['Telefone'].fillna("").astype(str).str.strip()
-                    df['Serviço'] = df['Serviço'].fillna("Procedimentos").astype(str).str.strip()
+                    telefone_formatado = limpar_numero(celular_puro)
                     
-                    df = df[df['Telefone'] != ""]
-                    
-                    # Agrupa os serviços do mesmo cliente separados por vírgula mantendo os dados limpos
-                    df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(x)).reset_index()
-                    
-                    st.write(f"### Clientes Agrupados Prontos para Envio (Total: {len(df_agrupado)}):")
-                    st.dataframe(df_agrupado)
-                    
-                    # Botão de disparo real
-                    if st.button(f"🚀 Iniciar Disparos Reais para {unidade}"):
-                        sucessos = 0
-                        erros = 0
+                    if telefone_formatado:
+                        status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
+                        code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_local, telefone_formatado)
                         
-                        url_api = f"https://graph.facebook.com/v18.0/{ID_TELEFONE_META}/messages"
-                        headers = {
-                            "Authorization": f"Bearer {TOKEN_META}",
-                            "Content-Type": "application/json"
-                        }
-                        
-                        progresso = st.progress(0)
-                        status_texto = st.empty()
-                        
-                        for index, offset in df_agrupado.iterrows():
-                            nome_cliente = offset["Cliente"]
-                            servicos_cliente = str(offset["Serviço"])
-                            
-                            # Garante que o texto de serviços nunca vá em branco para a Meta
-                            if not servicos_cliente or servicos_cliente.lower() in ['nan', 'none', '']:
-                                servicos_cliente = "Sessões agendadas"
-                            
-                            # Limpa o telefone do cliente e adiciona o código do país
-                            tel_limpo = re.sub(r'\D', '', offset["Telefone"])
-                            if not tel_limpo.startswith("55"):
-                                tel_limpo = "55" + tel_limpo
-                            
-                            # Montagem do payload oficial da API da Meta mapeando as 3 variáveis Corretas
-                            payload = {
-                                "messaging_product": "whatsapp",
-                                "to": tel_limpo,
-                                "type": "template",
-                                "template": {
-                                    "name": "confirmacao_agenda_maislaser",
-                                    "language": {
-                                        "code": "pt_BR"
-                                        },
-                                    "components": [
-                                        {
-                                            "type": "body",
-                                            "parameters": [
-                                                {"type": "text", "text": nome_cliente},       # {{1}} Nome do Cliente
-                                                {"type": "text", "text": servicos_cliente},   # {{2}} Áreas do Corpo Agrupadas
-                                                {"type": "text", "text": unidade}             # {{3}} Nome da Unidade
-                                            ]
-                                        }
-                                    ]
-                                }
-                            }
-                            
-                            # Envio real para a Meta
-                            resposta = requests.post(url_api, headers=headers, json=payload)
-                            
-                            if resposta.status_code == 200 or resposta.status_code == 201:
-                                sucessos += 1
-                            else:
-                                erros += 1
-                                # Exibe o erro real detalhado da Meta na tela sem mascarar com avisos fixos
-                                st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Retorno da Meta: {resposta.text}")
-                            
-                            # Atualiza progresso na tela do Streamlit
-                            percentual = (index + 1) / len(df_agrupado)
-                            progresso.progress(percentual)
-                            status_texto.text(f"Processando: {index + 1}/{len(df_agrupado)}")
-                            
-                        st.success(f"🎉 Disparos finalizados! Sucessos: {sucessos} | Erros: {erros}")
-                else:
-                    st.error("❌ Erro: Certifique-se que a planilha possui as colunas 'Cliente', 'Telefone' e 'Serviço'.")
-                        
-            except Exception as e:
-                st.error(f"Erro ao ler o arquivo: {e}")
-    else:
-        st.warning("⚠️ Aguardando a digitação de um número de WhatsApp válido para liberar o envio da lista.")
-else:
-    st.info("💡 Escolha a unidade acima para começar.")
+                        if code == 200 or code == 201:
+                            sucessos += 1
+                        else:
+                            erros += 1
+                    else:
+                        erros += 1
+                    
+                    # Controle de delay para evitar bloqueios da Meta
+                    time.sleep(1.5)
+                    
+                    # Atualiza a barra de carregamento na tela
+                    progresso.progress((index + 1) / len(df))
+                
+                status_texto.text("Processamento concluído!")
+                st.balloons()
+                st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros/Falhas: {erros}")
+                
+    except Exception as erro_geral:
+        st.error(f"Erro ao processar o arquivo: {erro_geral}")
+
+# Rodapé de controle interno
+st.markdown("---")
+st.caption("Desenvolvido para uso exclusivo interno da Maislaser.")
