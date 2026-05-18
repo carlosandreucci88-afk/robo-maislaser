@@ -125,7 +125,7 @@ if arquivo_upload is not None:
                 total_linhas = len(df_agrupado)
                 
                 for index, linha in df_agrupado.iterrows():
-                    nome_cliente = presidential = linha['Cliente']
+                    nome_cliente = linha['Cliente']
                     procedimento = linha['Serviço']
                     celular_puro = linha['Telefone']
                     
