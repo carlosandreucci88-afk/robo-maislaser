@@ -45,14 +45,14 @@ if unidade != "Clique para selecionar...":
                 
                 if "Telefone" in df.columns and "Cliente" in df.columns and "Serviço" in df.columns:
                     
-                    # Tratamento inicial contra espaços e nulos
+                    # Tratamento inicial contra espaços e nulos para evitar erros na Meta
                     df['Cliente'] = df['Cliente'].fillna("Cliente").astype(str).str.strip()
                     df['Telefone'] = df['Telefone'].fillna("").astype(str).str.strip()
                     df['Serviço'] = df['Serviço'].fillna("Procedimentos").astype(str).str.strip()
                     
                     df = df[df['Telefone'] != ""]
                     
-                    # Agrupa os serviços do mesmo cliente separados por vírgula
+                    # Agrupa os serviços do mesmo cliente separados por vírgula mantendo os dados limpos
                     df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(x)).reset_index()
                     
                     st.write(f"### Clientes Agrupados Prontos para Envio (Total: {len(df_agrupado)}):")
@@ -74,18 +74,14 @@ if unidade != "Clique para selecionar...":
                         
                         for index, linha in df_agrupado.iterrows():
                             nome_cliente = linha["Cliente"]
-                            servicos_cliente = str(linha["Serviço"]) # Corrigido!
+                            servicos_cliente = str(linha["Serviço"])
                             
-                            # Garante que o texto de serviços nunca vá em branco para a Meta
-                            if not servicos_cliente or servicos_cliente.lower() in ['nan', 'none', '']:
-                                servicos_cliente = "Sessões agendadas"
-                            
-                            # Limpa o telefone do cliente
+                            # Limpa o telefone do cliente e adiciona o código do país
                             tel_limpo = re.sub(r'\D', '', linha["Telefone"])
                             if not tel_limpo.startswith("55"):
                                 tel_limpo = "55" + tel_limpo
                             
-                            # Montagem do payload oficial da API da Meta
+                            # Montagem do payload oficial da API da Meta mapeando as 3 variáveis Corretas
                             payload = {
                                 "messaging_product": "whatsapp",
                                 "to": tel_limpo,
@@ -99,16 +95,16 @@ if unidade != "Clique para selecionar...":
                                         {
                                             "type": "body",
                                             "parameters": [
-                                                {"type": "text", "text": nome_cliente},       # {{1}} Nome
-                                                {"type": "text", "text": servicos_cliente},   # {{2}} Áreas/Serviços (Corrigido!)
-                                                {"type": "text", "text": unidade}             # {{3}} Unidade
+                                                {"type": "text", "text": nome_cliente},       # {{1}} Nome do Cliente
+                                                {"type": "text", "text": servicos_cliente},   # {{2}} Áreas do Corpo Agrupadas
+                                                {"type": "text", "text": unidade}             # {{3}} Nome da Unidade
                                             ]
                                         }
                                     ]
                                 }
                             }
                             
-                            # Envio real
+                            # Envio real para a Meta
                             resposta = requests.post(url_api, headers=headers, json=payload)
                             
                             if resposta.status_code == 200 or resposta.status_code == 201:
@@ -117,7 +113,7 @@ if unidade != "Clique para selecionar...":
                                 erros += 1
                                 st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Detalhe da Meta: {resposta.text}")
                             
-                            # Atualiza progresso
+                            # Atualiza progresso na tela do Streamlit
                             percentual = (index + 1) / len(df_agrupado)
                             progresso.progress(percentual)
                             status_texto.text(f"Processando: {index + 1}/{len(df_agrupado)}")
