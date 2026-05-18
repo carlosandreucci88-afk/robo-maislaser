@@ -29,7 +29,7 @@ def limpar_numero(numero):
     return num_limpo
 
 def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
-    """Faz a chamada de API para a Meta enviando o modelo estruturado com as 3 variáveis."""
+    """Faz a chamada de API para a Meta enviando o modelo estruturado com as 3 variables."""
     url = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
     
     headers = {
@@ -89,8 +89,14 @@ if arquivo_upload is not None:
         if not verificacao_colunas:
             st.error(f"Atenção: A planilha precisa conter exatamente as colunas: {', '.join(colunas_necessarias)}")
         else:
+            # 🔄 ADICIONADO APENAS O AGRUPAMENTO DA NOVA IDEIA PRESERVANDO A BASE 1.0
+            df['Serviço'] = df['Serviço'].fillna('').astype(str)
+            df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(list(set(x)))).reset_index()
+            # Garante que a ordem das colunas permaneça igual à visualização original
+            df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone']]
+            
             st.subheader(f"Visualização dos dados para envio ({unidade_selecionada}):")
-            st.dataframe(df[colunas_necessarias].head())
+            st.dataframe(df_agrupado.head())
             
             if st.button("Iniciar Disparos em Massa 🚀"):
                 progresso = st.progress(0)
@@ -98,12 +104,12 @@ if arquivo_upload is not None:
                 
                 sucessos = 0
                 erros = 0
-                total_linhas = len(df)
+                total_linhas = len(df_agrupado)
                 
-                for index, linha in df.iterrows():
+                for index, linha in df_agrupado.iterrows():
                     nome_cliente = linha['Cliente']
-                    procedimento = linha['Serviço']      # Coluna certa do seu arquivo
-                    celular_puro = linha['Telefone']      # Coluna certa do seu arquivo
+                    procedimento = linha['Serviço']
+                    celular_puro = linha['Telefone']
                     
                     telefone_formatado = limpar_numero(celular_puro)
                     
