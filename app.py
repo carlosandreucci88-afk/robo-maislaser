@@ -13,7 +13,7 @@ NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 # REGRAS DO PAINEL VISUAL (STREAMLIT)
 st.set_page_config(page_title="Robô Agenda Maislaser", page_icon="✨", layout="centered")
 st.title("🤖 Disparador de Agenda — Maislaser")
-st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmation.")
+st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmação.")
 
 def limpar_numero(numero):
     """Limpa o número deixando apenas dígitos e garante o formato correto internacional."""
