@@ -76,6 +76,10 @@ if unidade != "Clique para selecionar...":
                             nome_cliente = linha["Cliente"]
                             servicos_cliente = str(linha["Serviço"])
                             
+                            # Correção do erro da linha 83: Garante que o texto use a variável 'servicos_cliente' com 'c'
+                            if not servicos_cliente or servicos_cliente.lower() in ['nan', 'none', '']:
+                                servicos_cliente = "Sessões agendadas"
+                            
                             # Limpa o telefone do cliente e adiciona o código do país
                             tel_limpo = re.sub(r'\D', '', linha["Telefone"])
                             if not tel_limpo.startswith("55"):
