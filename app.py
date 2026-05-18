@@ -10,8 +10,10 @@ TOKEN_META = "EAAPbXbAnA9IBO7SgZAnK6LwW0p2XFqWnS2z6fS1U6EZAAnM7q9ZA1Qd7e8gB4hV7X
 ID_TELEFONE_META = "1083951441475080"
 NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
-# NUMERO QUE RECEBE OS ALERTAS DE RESPOSTAS DOS CLIENTES
-NUMERO_ALERTA_INTERNO = "5511911177883" 
+# REGRAS DO PAINEL VISUAL (STREAMLIT)
+st.set_page_config(page_title="Robô Agenda Maislaser", page_icon="✨", layout="centered")
+st.title("🤖 Disparador de Agenda — Maislaser")
+st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmação.")
 
 def limpar_numero(numero):
     """Limpa o número deixando apenas dígitos e garante o formato correto internacional."""
@@ -63,16 +65,15 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
     except Exception as e:
         return 500, {"error": str(e)}
 
-# REGRAS DO PAINEL VISUAL (STREAMLIT)
-st.set_page_config(page_title="Robô Agenda Maislaser", page_icon="✨", layout="centered")
-st.title("🤖 Disparador de Agenda — Maislaser")
-st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmação.")
-
-# SELEÇÃO DE UNIDADE
+# SELEÇÃO DE UNIDADE DIRECTO NA TELA
 unidade_selecionada = st.selectbox("Selecione a Unidade que está operando hoje:", ["Mogi das Cruzes", "Suzano"])
 
-str_alerta = f"📢 Os alertas de agendamento serão enviados para o número: {NUMERO_ALERTA_INTERNO}"
-st.info(str_alerta)
+# CAIXA DE TEXTO NO SITE PARA VOCÊ DIGITAR O NÚMERO DE ALERTA QUE QUISER
+numero_alerta_input = st.text_input("Digite o número de WhatsApp que receberá os alertas (com DDD):", value="5511911177883")
+
+if numero_alerta_input:
+    numero_alerta_formatado = limpar_numero(numero_alerta_input)
+    st.info(f"📢 Os alertas de agendamento serão enviados para: {numero_alerta_formatado}")
 
 arquivo_upload = st.file_uploader("Selecione a planilha do UNO (.xlsx)", type=["xlsx"])
 
@@ -118,7 +119,7 @@ if arquivo_upload is not None:
                             code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_local, telefone_formatado)
                             
                             if code == 200 or code == 201:
-                                successes += 1
+                                sucessos += 1
                             else:
                                 erros += 1
                         else:
