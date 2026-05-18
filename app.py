@@ -34,7 +34,7 @@ def limpar_numero(numero):
     return num_limpo
 
 def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
-    """Faz a chamada de API para a Meta enviando o modelo estruturado com as 3 variables."""
+    """Faz a chamada de API para a Meta enviando o modelo estruturado com as 3 variáveis corretas."""
     url = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
     
     headers = {
@@ -59,8 +59,8 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
                     "type": "body",
                     "parameters": [
                         {"type": "text", "text": str(nome)},          # {{1}} Nome do cliente
-                        {"type": "text", "text": procedimento_limpo},  # {{2}} Serviço / Procedimento
-                        {"type": "text", "text": str(unidade)}        # {{3}} Nome da unidade selecionada no site
+                        {"type": "text", "text": procedimento_limpo},  # {{2}} Serviço / Procedimentos Agrupados
+                        {"type": "text", "text": str(unidade)}        # {{3}} Nome da unidade vindo do site
                     ]
                 }
             ]
@@ -125,7 +125,7 @@ if arquivo_upload is not None:
                 total_linhas = len(df_agrupado)
                 
                 for index, linha in df_agrupado.iterrows():
-                    nome_cliente = linha['Cliente']
+                    nome_cliente = presidential = linha['Cliente']
                     procedimento = linha['Serviço']
                     celular_puro = linha['Telefone']
                     
@@ -135,7 +135,7 @@ if arquivo_upload is not None:
                     if telefone_formatado and len(telefone_formatado) >= 10:
                         status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
                         
-                        # Passa a unidade_selecionada do site direto para a mensagem
+                        # Agora passando corretamente nome, procedimento, unidade_selecionada e telefone_formatado
                         code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_selecionada, telefone_formatado)
                         
                         if code == 200 or code == 201:
