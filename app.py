@@ -76,7 +76,7 @@ if unidade != "Clique para selecionar...":
                             nome_cliente = linha["Cliente"]
                             servicos_cliente = str(linha["Serviço"])
                             
-                            # Correção do erro da linha 83: Garante que o texto use a variável 'servicos_cliente' com 'c'
+                            # Garante que o texto de serviços nunca vá em branco para a Meta
                             if not servicos_cliente or servicos_cliente.lower() in ['nan', 'none', '']:
                                 servicos_cliente = "Sessões agendadas"
                             
