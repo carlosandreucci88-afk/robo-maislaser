@@ -85,7 +85,7 @@ if arquivo_upload is not None:
         df = pd.read_excel(arquivo_upload)
         total_original = len(df)
         
-        # COLUNAS CORRIGIDAS DE ACORDO COM O SEU ARQUIVO REAL
+        # COLUNAS CORRIGIDAS DE ACORDO WITH O SEU ARQUIVO REAL
         colunas_necessarias = ['Cliente', 'Serviço', 'Telefone']
         verificacao_colunas = all(col in df.columns for col in colunas_necessarias)
         
@@ -131,8 +131,11 @@ if arquivo_upload is not None:
                             sucessos += 1
                         else:
                             erros += 1
+                            # Exibe o erro real detalhado retornado pela API da Meta na tela
+                            st.error(f"❌ Falha ao enviar para {nome_cliente} ({telefone_formatado}) | Código HTTP: {code} | Retorno: {json.dumps(res, ensure_ascii=False)}")
                     else:
                         erros += 1
+                        st.error(f"⚠️ Número de telefone inválido ou ausente para o cliente: {nome_cliente}")
                     
                     # Controle de delay para evitar bloqueios da Meta
                     time.sleep(1.5)
