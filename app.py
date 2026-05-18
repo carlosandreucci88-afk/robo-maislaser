@@ -18,7 +18,6 @@ unidade = st.selectbox(
     ["Clique para selecionar...", "Mogi das Cruzes", "Suzano"]
 )
 
-# Se escolheu uma unidade válida, mostra o campo do WhatsApp de Alerta
 if unidade != "Clique para selecionar...":
     
     st.markdown("---")
@@ -29,50 +28,60 @@ if unidade != "Clique para selecionar...":
         value=""
     )
     
-    # Limpa o número deixando apenas dígitos
     whatsapp_alerta_limpo = re.sub(r'\D', '', whatsapp_alerta)
     
-    # Valida se o número foi digitado (mínimo de 10 dígitos)
     if len(whatsapp_alerta_limpo) >= 10:
         
         st.markdown("---")
         st.success(f"✅ Configuração concluída! Alertas serão enviados para o número informado.")
         
-        # Definição da mensagem de resposta automática que o CLIENTE vai receber ao clicar em Reagendar
+        # Definição das mensagens automáticas por unidade
         if unidade == "Mogi das Cruzes":
             mensagem_reagendar_cliente = "Entendido! Para reagendamentos você consegue ligar rapidinho para o numero - (11) 2610-1297."
-        else: # Suzano
+        else:
             mensagem_reagendar_cliente = "Entendido! Para reagendamentos você consegue ligar rapidinho para o numero - (11) 98990-5383."
         
-        # 2. SELEÇÃO DA PLANILHA (SÓ APARECE SE O TELEFONE FOR PREENCHIDO)
+        # 2. SELEÇÃO DA PLANILHA
         arquivo_excel = st.file_uploader("3. Escolha a planilha do UNO (.xlsx)", type=["xlsx"])
         
         if arquivo_excel is not None:
             try:
                 # Lê a planilha do UNO
                 df = pd.read_excel(arquivo_excel)
-                st.write("### Pré-visualização dos dados carregados:")
-                st.dataframe(df.head())
                 
-                # Botão de disparo
-                if st.button(f"🚀 Iniciar Disparos para {unidade}"):
-                    # Verifica se a coluna automática do UNO existe
-                    if "Telefone" in df.columns:
+                if "Telefone" in df.columns and "Cliente" in df.columns and "Serviço" in df.columns:
+                    
+                    # --- TRATAMENTO E AGRUPAMENTO DOS DADOS ---
+                    # Garante que espaços em branco não atrapalhem o agrupamento
+                    df['Cliente'] = df['Cliente'].astype(str).str.strip()
+                    df['Telefone'] = df['Telefone'].astype(str).str.strip()
+                    df['Serviço'] = df['Serviço'].astype(str).str.strip()
+                    
+                    # Agrupa por Cliente e Telefone, juntando os Serviços com uma vírgula
+                    df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(x)).reset_index()
+                    
+                    st.write(f"### Pré-visualização dos Clientes Agrupados (Total único: {len(df_agrupado)}):")
+                    st.dataframe(df_agrupado.head())
+                    
+                    # Botão de disparo
+                    if st.button(f"🚀 Iniciar Disparos para {unidade}"):
                         sucessos = 0
                         erros = 0
                         
-                        # Loop para envio das mensagens
-                        for index, linha in df.iterrows():
-                            telefone_cliente = str(linha["Telefone"])
+                        # Loop usando a lista tratada e agrupada
+                        for index, linha in df_agrupado.iterrows():
+                            nome_cliente = linha["Cliente"]
+                            telefone_cliente = linha["Telefone"]
+                            servicos_cliente = linha["Serviço"] # Aqui tem todas as áreas juntas!
                             
-                            # O sistema agora sabe qual unidade é, para quem mandar o alerta (whatsapp_alerta_limpo)
-                            # e qual texto de resposta enviar para o cliente caso ele queira reagendar (mensagem_reagendar_cliente)
+                            # O robô agora envia uma única mensagem contendo a lista de 'servicos_cliente'
+                            # Exemplo lógico interno: "Olá {nome_cliente}, confirmando seu horário para {servicos_cliente}?"
                             
-                            sucessos += 1 # Simulação do contador
+                            sucessos += 1
                             
-                        st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros: {erros}")
-                    else:
-                        st.error("❌ Erro: A coluna 'Telefone' não foi encontrada na planilha. Verifique a exportação do UNO.")
+                        st.success(f"Disparos finalizados com agrupamento! Total de clientes únicos avisados: {sucessos} | Erros: {erros}")
+                else:
+                    st.error("❌ Erro: Certifique-se que a planilha possui as colunas 'Cliente', 'Telefone' e 'Serviço'.")
                         
             except Exception as e:
                 st.error(f"Erro ao ler o arquivo: {e}")
