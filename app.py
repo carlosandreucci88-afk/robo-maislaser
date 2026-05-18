@@ -5,6 +5,8 @@ import re
 
 # CONFIGURAÇÕES FIXAS E OCULTAS (API DA META)
 TOKEN_META = "EAH5107Jgp0EBRaZB3ZAVSqisUuMTFNlX3aCgZB445TMzH8YiRQv9Mm0WVwNYZAvmwjUiFWsiKWo6itjGzuuZBYwO5huSXVCTj0U537mYT62CG6Ub9E0EoP7XyhFKf46RJaTxIz3DBNVatTchBUo6ZCkZCDaGZC44uq4fqgBLdZACeflbM5ZCDKw8uu1uj8vizBpwZDZD"
+
+# ATENÇÃO: Se o erro persistir, verifique no painel da Meta se este ID não mudou!
 ID_TELEFONE_META = "10894333337592658"
 
 st.set_page_config(page_title="Painel Maislaser", page_icon="🤖", layout="wide")
@@ -76,7 +78,7 @@ if unidade != "Clique para selecionar...":
                             nome_cliente = linha["Cliente"]
                             servicos_cliente = str(linha["Serviço"])
                             
-                            # Garante que o text de serviços nunca vá em branco para a Meta
+                            # Garante que o texto de serviços nunca vá em branco para a Meta
                             if not servicos_cliente or servicos_cliente.lower() in ['nan', 'none', '']:
                                 servicos_cliente = "Sessões agendadas"
                             
@@ -85,13 +87,13 @@ if unidade != "Clique para selecionar...":
                             if not tel_limpo.startswith("55"):
                                 tel_limpo = "55" + tel_limpo
                             
-                            # Montagem do payload oficial da API da Meta mapeando as 3 variáveis Corretas
+                            # CORREÇÃO: Nome do modelo alterado para 'confirmacao_agenda_maislaser' conforme aprovado na Meta
                             payload = {
                                 "messaging_product": "whatsapp",
                                 "to": tel_limpo,
                                 "type": "template",
                                 "template": {
-                                    "name": "confirmacao_agendamento",
+                                    "name": "confirmacao_agenda_maislaser",
                                     "language": {
                                         "code": "pt_BR"
                                     },
