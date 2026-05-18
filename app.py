@@ -51,8 +51,8 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
                     "type": "body",
                     "parameters": [
                         {"type": "text", "text": str(nome)},          # {{1}} Nome do cliente
-                        {"type": "text", "text": str(procedimento)},  # {{2}} Procedimento(s)
-                        {"type": "text", "text": str(unidade)}        # {{3}} Nome da unidade
+                        {"type": "text", "text": str(procedimento)},  # {{2}} Serviço / Procedimento
+                        {"type": "text", "text": str(unidade)}        # {{3}} Nome da unidade selecionada no site
                     ]
                 }
             ]
@@ -65,7 +65,7 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
     except Exception as e:
         return 500, {"error": str(e)}
 
-# SELEÇÃO DE UNIDADE DIRECTO NA TELA
+# SELEÇÃO DE UNIDADE DIRETO NA TELA
 unidade_selecionada = st.selectbox("Selecione a Unidade que está operando hoje:", ["Mogi das Cruzes", "Suzano"])
 
 # CAIXA DE TEXTO NO SITE PARA VOCÊ DIGITAR O NÚMERO DE ALERTA QUE QUISER
@@ -80,60 +80,55 @@ arquivo_upload = st.file_uploader("Selecione a planilha do UNO (.xlsx)", type=["
 if arquivo_upload is not None:
     try:
         df = pd.read_excel(arquivo_upload)
-        st.success(f"Planilha carregada com sucesso! Encontrados {len(df)} registros para a unidade {unidade_selecionada}.")
+        st.success(f"Planilha carregada com sucesso! Encontrados {len(df)} registros.")
         
-        # Mapeamento das colunas esperadas na planilha do UNO
-        colunas_necessarias = ['Cliente', 'Procedimento', 'Unidade', 'Celular']
+        # COLUNAS CORRIGIDAS DE ACORDO COM O SEU ARQUIVO REAL
+        colunas_necessarias = ['Cliente', 'Serviço', 'Telefone']
         verificacao_colunas = all(col in df.columns for col in colunas_necessarias)
         
         if not verificacao_colunas:
             st.error(f"Atenção: A planilha precisa conter exatamente as colunas: {', '.join(colunas_necessarias)}")
         else:
-            # Filtra os dados com base na unidade selecionada no painel
-            df_filtrado = df[df['Unidade'].str.contains(unidade_selecionada, case=False, na=False)]
+            st.subheader(f"Visualização dos dados para envio ({unidade_selecionada}):")
+            st.dataframe(df[colunas_necessarias].head())
             
-            st.subheader(f"Visualização dos dados ({unidade_selecionada}):")
-            st.dataframe(df_filtrado[colunas_necessarias].head())
-            
-            if len(df_filtrado) == 0:
-                st.warning(f"Nenhum cliente encontrado na planilha para a unidade {unidade_selecionada}.")
-            else:
-                if st.button("Iniciar Disparos em Massa 🚀"):
-                    progresso = st.progress(0)
-                    status_texto = st.empty()
+            if st.button("Iniciar Disparos em Massa 🚀"):
+                progresso = st.progress(0)
+                status_texto = st.empty()
+                
+                sucessos = 0
+                erros = 0
+                total_linhas = len(df)
+                
+                for index, linha in df.iterrows():
+                    nome_cliente = linha['Cliente']
+                    procedimento = linha['Serviço']      # Coluna certa do seu arquivo
+                    celular_puro = linha['Telefone']      # Coluna certa do seu arquivo
                     
-                    sucessos = 0
-                    erros = 0
-                    total_linhas = len(df_filtrado)
+                    telefone_formatado = limpar_numero(celular_puro)
                     
-                    for index, (idx_orig, linha) in enumerate(df_filtrado.iterrows()):
-                        nome_cliente = linha['Cliente']
-                        procedimento = linha['Procedimento']
-                        unidade_local = linha['Unidade']
-                        celular_puro = linha['Celular']
+                    if telefone_formatado:
+                        status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
                         
-                        telefone_formatado = limpar_numero(celular_puro)
+                        # Passa a unidade_selecionada do site direto para a mensagem
+                        code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_selecionada, telefone_formatado)
                         
-                        if telefone_formatado:
-                            status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
-                            code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_local, telefone_formatado)
-                            
-                            if code == 200 or code == 201:
-                                sucessos += 1
-                            else:
-                                erros += 1
+                        if code == 200 or code == 201:
+                            sucessos += 1
                         else:
                             erros += 1
-                        
-                        # Controle de delay para evitar bloqueios da Meta
-                        time.sleep(1.5)
-                        
-                        # Atualiza a barra de carregamento na tela
-                        progresso.progress((index + 1) / total_linhas)
+                    else:
+                        erros += 1
                     
-                    status_texto.text("Processamento concluído!")
-                    st.balloons()
-                    st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros/Falhas: {erros}")
+                    # Controle de delay para evitar bloqueios da Meta
+                    time.sleep(1.5)
+                    
+                    # Atualiza a barra de carregamento na tela
+                    progresso.progress((index + 1) / total_linhas)
+                
+                status_texto.text("Processamento concluído!")
+                st.balloons()
+                st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros/Falhas: {erros}")
                 
     except Exception as erro_geral:
         st.error(f"Erro ao processar o arquivo: {erro_geral}")
