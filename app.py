@@ -19,11 +19,16 @@ def limpar_numero(numero):
     """Limpa o número deixando apenas dígitos e garante o formato correto internacional."""
     if pd.isna(numero):
         return None
+    
+    # Remove ponto flutuante caso o pandas tenha lido como float (ex: 55119.0)
     num_str = str(numero).strip()
+    if num_str.endswith('.0'):
+        num_str = num_str[:-2]
+        
     num_limpo = re.sub(r'\D', '', num_str)
     
     # Se o número não começar com o código do país (55), adiciona
-    if not num_limpo.startswith('55'):
+    if not num_limpo.startswith('55') and num_limpo != '':
         num_limpo = '55' + num_limpo
         
     return num_limpo
@@ -42,7 +47,7 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
     
     payload = {
         "messaging_product": "whatsapp",
-        "to": telefone_destino,
+        "to": str(telefone_destino),
         "type": "template",
         "template": {
             "name": NOME_MODELO_MENSAGEM,
@@ -92,10 +97,15 @@ if arquivo_upload is not None:
         if not verificacao_colunas:
             st.error(f"Atenção: A planilha precisa conter exatamente as colunas: {', '.join(colunas_necessarias)}")
         else:
-            # 🔄 ADICIONADO APENAS O AGRUPAMENTO DA NOVA IDEIA PRESERVANDO A BASE 1.0
-            df['Serviço'] = df['Serviço'].fillna('').astype(str)
+            # 🔄 TRATAMENTO ANTES DO AGRUPAMENTO PARA CORRIGIR O ERRO DO TELEFONE
+            df['Cliente'] = df['Cliente'].fillna('').astype(str).str.strip()
+            df['Serviço'] = df['Serviço'].fillna('').astype(str).str.strip()
+            
+            # Limpa cada número individualmente na coluna antes de agrupar para evitar que o pandas mude o tipo
+            df['Telefone'] = df['Telefone'].apply(limpar_numero).fillna('').astype(str)
+            
+            # Agrupa agora com os telefones já perfeitamente limpos e formatados em string
             df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(list(set(x)))).reset_index()
-            # Garante que a ordem das colunas permaneça igual à visualização original
             df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone']]
             total_agrupado = len(df_agrupado)
             
@@ -119,9 +129,10 @@ if arquivo_upload is not None:
                     procedimento = linha['Serviço']
                     celular_puro = linha['Telefone']
                     
-                    telefone_formatado = limpar_numero(celular_puro)
+                    # O número já vem tratado do banco agrupado
+                    telefone_formatado = celular_puro
                     
-                    if telefone_formatado:
+                    if telefone_formatado and len(telefone_formatado) >= 10:
                         status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
                         
                         # Passa a unidade_selecionada do site direto para a mensagem
@@ -135,7 +146,7 @@ if arquivo_upload is not None:
                             st.error(f"❌ Falha ao enviar para {nome_cliente} ({telefone_formatado}) | Código HTTP: {code} | Retorno: {json.dumps(res, ensure_ascii=False)}")
                     else:
                         erros += 1
-                        st.error(f"⚠️ Número de telefone inválido ou ausente para o cliente: {nome_cliente}")
+                        st.error(f"⚠️ Número de telefone inválido ou ausente para o cliente: {nome_cliente} (Dado encontrado: {celular_puro})")
                     
                     # Controle de delay para evitar bloqueios da Meta
                     time.sleep(1.5)
