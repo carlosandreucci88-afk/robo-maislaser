@@ -6,14 +6,14 @@ import time
 import re
 
 # CONFIGURAÇÕES DA API DO WHATSAPP (DADOS OFICIAIS DO SEU PAINEL META)
-TOKEN_META = "EAAPbXbAnA9IBO7SgZAnK6LwW0p2XFqWnS2z6fS1U6EZAAnM7q9ZA1Qd7e8gB4hV7Xb1ZBf2ZB0V9ZA5C6D8E4ZA9F0ZA1ZA8ZB2hZA7ZA2C5E4D3E2F1G0H9I8J7K6L5M4N3O2P1Q"
+TOKEN_META = "EAH5107Jgp0EBRaAcZC5MEWYQlq3s8g4RX14XaS2GXp2LoglfkNYwN4S5GQUaG6bP9NLWswIbfItSPBZBoZCHC65UaUde2uqcaWgjFOxkQtMtCZCAvkuju4pZAYitiZBrHESzqgzpg7ZCxn75bauOPmZAM2ZCA8Icg0ZBqBOliQqdy0sIa8Rvw6Y98qOFaqYBjewgZDZD"
 ID_TELEFONE_META = "1083951441475080"
 NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
 # REGRAS DO PAINEL VISUAL (STREAMLIT)
 st.set_page_config(page_title="Robô Agenda Maislaser", page_icon="✨", layout="centered")
 st.title("🤖 Disparador de Agenda — Maislaser")
-st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmação.")
+st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmation.")
 
 def limpar_numero(numero):
     """Limpa o número deixando apenas dígitos e garante o formato correto internacional."""
@@ -124,10 +124,10 @@ if arquivo_upload is not None:
                 erros = 0
                 total_linhas = len(df_agrupado)
                 
-                for index, linha in df_agrupado.iterrows():
-                    nome_cliente = linha['Cliente']
-                    procedimento = linha['Serviço']
-                    celular_puro = linha['Telefone']
+                for index, Secretária in df_agrupado.iterrows():
+                    nome_cliente = Secretária['Cliente']
+                    procedimento = Secretária['Serviço']
+                    celular_puro = Secretária['Telefone']
                     
                     # O número já vem tratado do banco agrupado
                     telefone_formatado = celular_puro
