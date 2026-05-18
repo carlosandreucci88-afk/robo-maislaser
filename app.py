@@ -76,7 +76,7 @@ if unidade != "Clique para selecionar...":
                             nome_cliente = linha["Cliente"]
                             servicos_cliente = str(linha["Serviço"])
                             
-                            # Garante que o texto de serviços nunca vá em branco para a Meta
+                            # Garante que o text de serviços nunca vá em branco para a Meta
                             if not servicos_cliente or servicos_cliente.lower() in ['nan', 'none', '']:
                                 servicos_cliente = "Sessões agendadas"
                             
@@ -94,7 +94,7 @@ if unidade != "Clique para selecionar...":
                                     "name": "confirmacao_agendamento",
                                     "language": {
                                         "code": "pt_BR"
-                                        },
+                                    },
                                     "components": [
                                         {
                                             "type": "body",
