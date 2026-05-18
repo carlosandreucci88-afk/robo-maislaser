@@ -94,7 +94,7 @@ if unidade != "Clique para selecionar...":
                                     "name": "confirmacao_agenda_maislaser",
                                     "language": {
                                         "code": "pt_BR"
-                                        },
+                                    },
                                     "components": [
                                         {
                                             "type": "body",
@@ -115,7 +115,11 @@ if unidade != "Clique para selecionar...":
                                 sucessos += 1
                             else:
                                 erros += 1
-                                st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Detalhe da Meta: {resposta.text}")
+                                # Mensagem Amigável Inteligente que detecta token expirado ou ID inexistente
+                                if "does not exist" in resposta.text or "permissions" in resposta.text:
+                                    st.error(f"❌ Erro Crítico na Meta: O ID do Telefone ({ID_TELEFONE_META}) não foi reconhecido ou o Token permanente não tem acesso a ele. Verifique as permissões 'whatsapp_business_messaging' no Utilizador do Sistema.")
+                                else:
+                                    st.error(f"Falha ao enviar para {nome_cliente} ({tel_limpo}). Detalhe da Meta: {resposta.text}")
                             
                             # Atualiza progresso na tela do Streamlit
                             percentual = (index + 1) / len(df_agrupado)
