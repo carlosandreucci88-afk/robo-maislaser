@@ -34,7 +34,7 @@ def limpar_numero(numero):
     return num_limpo
 
 def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
-    """Faz a chamada de API para a Meta enviando o modelo estruturado na versão estável v20.0."""
+    """Faz a chamada de API para a Meta enviando o modelo estruturado de forma direta."""
     url = f"https://graph.facebook.com/v20.0/{ID_TELEFONE_META}/messages"
     
     headers = {
@@ -134,7 +134,7 @@ if arquivo_upload is not None:
                     if telefone_formatado and len(telefone_formatado) >= 10:
                         status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
                         
-                        # Dispara usando a função oficial mapeada com v20.0
+                        # Dispara usando a função oficial mapeada
                         code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_selecionada, telefone_formatado)
                         
                         if code == 200 or code == 201:
@@ -153,7 +153,8 @@ if arquivo_upload is not None:
                     progresso.progress((index + 1) / total_linhas)
                 
                 status_texto.text("Processamento concluído!")
-                st.balloons()
+                if sucessos > 0:
+                    st.balloons()
                 st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros/Falhas: {erros}")
                 
     except Exception as erro_geral:
