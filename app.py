@@ -110,3 +110,55 @@ if arquivo_upload is not None:
             total_agrupado = len(df_agrupado)
             
             # Avisos de contagem na tela
+            st.success(f"Planilha carregada com sucesso! Encontrados {total_original} registros originais.")
+            st.info(f"🔄 Agrupamento concluído: Os serviços foram unidos por cliente. No total, serão disparadas apenas {total_agrupado} mensagens.")
+            
+            st.subheader(f"Visualização dos dados para envio ({unidade_selecionada}):")
+            st.dataframe(df_agrupado.head())
+            
+            if st.button("Iniciar Disparos em Massa 🚀"):
+                progresso = st.progress(0)
+                status_texto = st.empty()
+                
+                sucessos = 0
+                erros = 0
+                total_linhas = len(df_agrupado)
+                
+                for index, linha in df_agrupado.iterrows():
+                    nome_cliente = linha['Cliente']
+                    procedimento = linha['Serviço']
+                    celular_puro = linha['Telefone']
+                    
+                    telefone_formatado = celular_puro
+                    
+                    if telefone_formatado and len(telefone_formatado) >= 10:
+                        status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
+                        
+                        # Dispara usando a função oficial mapeada com v20.0
+                        code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_selecionada, telefone_formatado)
+                        
+                        if code == 200 or code == 201:
+                            sucessos += 1
+                        else:
+                            erros += 1
+                            st.error(f"❌ Falha ao enviar para {nome_cliente} ({telefone_formatado}) | Código HTTP: {code} | Retorno: {json.dumps(res, ensure_ascii=False)}")
+                    else:
+                        erros += 1
+                        st.error(f"⚠️ Número de telefone inválido ou ausente para o cliente: {nome_cliente} (Dado encontrado: {celular_puro})")
+                    
+                    # Controle de delay para respeitar as diretrizes da Meta
+                    time.sleep(1.5)
+                    
+                    # Atualiza a barra de carregamento na tela
+                    progresso.progress((index + 1) / total_linhas)
+                
+                status_texto.text("Processamento concluído!")
+                st.balloons()
+                st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros/Falhas: {erros}")
+                
+    except Exception as erro_geral:
+        st.error(f"Erro ao processar o arquivo: {erro_geral}")
+
+# Rodapé de controle interno
+st.markdown("---")
+st.caption("Desenvolvido para uso exclusivo interno da Maislaser.")
