@@ -146,7 +146,7 @@ unidade_selecionada = st.selectbox(
 
 numero_alerta_input = st.text_input(
     "Digite o número de WhatsApp que receberá os alertas (com DDD):",
-    value="5511911177883"
+    value=""
 )
 
 if numero_alerta_input:
