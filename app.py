@@ -14,7 +14,7 @@ NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
 # URL do Google Apps Script (webhook) — preencha após publicar o script
 # Exemplo: "https://script.google.com/macros/s/SEU_ID_AQUI/exec"
-URL_WEBHOOK_CONTEXTO = ""  # <- cole aqui a URL após publicar o Apps Script
+URL_WEBHOOK_CONTEXTO = "https://script.google.com/macros/s/AKfycbxRXgNsIL8J1uHCfS_E9HjXEorFSiHtlN9v7q9LHEVwzbG0lIG6aw-8Id9CmoawS52v/exec"
 
 # ============================================================
 # CONFIGURAÇÕES DO PAINEL VISUAL (STREAMLIT)
