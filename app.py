@@ -12,6 +12,10 @@ TOKEN_META = "EAH5107Jgp0EBRltZCeJHL76gxeAuG6YuH8upLrZBTTL4bMEIWonsmmkJ8eVHzh7km
 ID_TELEFONE_META = "1083951441475080"
 NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
+# URL do Google Apps Script (webhook) — preencha após publicar o script
+# Exemplo: "https://script.google.com/macros/s/SEU_ID_AQUI/exec"
+URL_WEBHOOK_CONTEXTO = ""  # <- cole aqui a URL após publicar o Apps Script
+
 # ============================================================
 # CONFIGURAÇÕES DO PAINEL VISUAL (STREAMLIT)
 # ============================================================
@@ -252,6 +256,19 @@ if arquivo_upload is not None:
 
                         if code in (200, 201):
                             sucessos += 1
+                            # Salva contexto no webhook para processar respostas dos clientes
+                            if URL_WEBHOOK_CONTEXTO:
+                                try:
+                                    requests.post(URL_WEBHOOK_CONTEXTO, json={
+                                        "acao": "salvar_contexto",
+                                        "telefone": telefone_formatado,
+                                        "nome": nome_cliente,
+                                        "servico": procedimento,
+                                        "unidade": unidade_selecionada,
+                                        "numero_alerta": numero_alerta_formatado
+                                    }, timeout=5)
+                                except Exception:
+                                    pass
                         else:
                             erros += 1
                             st.error(
@@ -278,6 +295,35 @@ if arquivo_upload is not None:
                     f"🎉 Disparos finalizados! "
                     f"✅ Sucessos: {sucessos} | ❌ Erros/Falhas: {erros}"
                 )
+
+                # --------------------------------------------------
+                # ✅ ALERTA FINAL: Envia resumo para o número de alerta
+                # --------------------------------------------------
+                if numero_alerta_formatado and len(numero_alerta_formatado) >= 12:
+                    url_alerta = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
+                    headers_alerta = {
+                        "Authorization": f"Bearer {TOKEN_META}",
+                        "Content-Type": "application/json"
+                    }
+                    mensagem_alerta = (
+                        f"✅ *Robô Maislaser — Disparo Concluído*\n\n"
+                        f"📍 Unidade: {unidade_selecionada}\n"
+                        f"📨 Mensagens enviadas: {sucessos}\n"
+                        f"❌ Erros/Falhas: {erros}\n"
+                        f"👥 Total processado: {total_linhas}"
+                    )
+                    payload_alerta = {
+                        "messaging_product": "whatsapp",
+                        "to": numero_alerta_formatado,
+                        "type": "text",
+                        "text": {"body": mensagem_alerta}
+                    }
+                    try:
+                        r = requests.post(url_alerta, headers=headers_alerta, json=payload_alerta)
+                        if r.status_code in (200, 201):
+                            st.info(f"📢 Resumo enviado via WhatsApp para {numero_alerta_formatado}")
+                        else:
+                            st.warning(f"⚠️ Não
 
     except Exception as erro_geral:
         st.error(f"❌ Erro ao processar o arquivo: {erro_geral}")
