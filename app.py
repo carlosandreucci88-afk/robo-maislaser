@@ -5,46 +5,105 @@ import json
 import time
 import re
 
-# CONFIGURAÇÕES DA API DO WHATSAPP (DADOS OFICIAIS DO SEU PAINEL META)
+# ============================================================
+# CONFIGURAÇÕES DA API DO WHATSAPP (v25.0)
+# ============================================================
 TOKEN_META = "EAH5107Jgp0EBRfBfJzQ4C9hDMDrqay8a0JofFrtyQwTE4k3qsksNFOFCvZC9wZCglKPzBFinTWeJdqD70FVyqoF4lNzodUZAZAxYNxd7ucgw42dTS3R0INJVIquzUrUAC8jZATHtZBxR1iOj0rTs1xo424lc0mtkxpB6gdDYZBWLD7lmvWZARZB1H7cYzCfyag6jKtwZDZD"
 ID_TELEFONE_META = "1083951441475080"
 NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
-# REGRAS DO PAINEL VISUAL (STREAMLIT)
+# ============================================================
+# CONFIGURAÇÕES DO PAINEL VISUAL (STREAMLIT)
+# ============================================================
 st.set_page_config(page_title="Robô Agenda Maislaser", page_icon="✨", layout="centered")
 st.title("🤖 Disparador de Agenda — Maislaser")
 st.write("Suba a planilha gerada pelo sistema UNO para iniciar os disparos de confirmação.")
 
+# ============================================================
+# FUNÇÃO: Limpar número de telefone
+# ============================================================
 def limpar_numero(numero):
-    """Limpa o número deixando apenas dígitos e garante o formato correto internacional."""
+    """
+    Limpa o número deixando apenas dígitos e garante o formato
+    correto internacional com DDI 55 (Brasil).
+    Trata casos onde o pandas lê como float (ex: 5511999990000.0)
+    """
     if pd.isna(numero):
         return None
-    
-    # Remove ponto flutuante caso o pandas tenha lido como float (ex: 55119.0)
+
     num_str = str(numero).strip()
+
+    # Remove ponto flutuante gerado pelo pandas (ex: 55119999.0 → 55119999)
     if num_str.endswith('.0'):
         num_str = num_str[:-2]
-        
-    num_limpo = re.sub(r'\D', '', num_str)
-    
-    # Se o número não começar com o código do país (55), adiciona
-    if not num_limpo.startswith('55') and num_limpo != '':
-        num_limpo = '55' + num_limpo
-        
-    return num_limpo
 
+    # Remove tudo que não for dígito
+    num_limpo = re.sub(r'\D', '', num_str)
+
+    if num_limpo == '':
+        return None
+
+    # ✅ CORREÇÃO: Evita duplicar o 55 — verifica se JÁ começa com 55
+    # e se o comprimento faz sentido para um número brasileiro com DDI
+    # Número brasileiro com DDI: 55 + DDD (2) + número (8 ou 9) = 12 ou 13 dígitos
+    if num_limpo.startswith('55') and len(num_limpo) >= 12:
+        return num_limpo  # Já está correto, não adiciona 55 novamente
+    elif not num_limpo.startswith('55'):
+        return '55' + num_limpo
+    else:
+        return num_limpo
+
+# ============================================================
+# FUNÇÃO: Limpar nome do serviço para exibição na mensagem
+# ============================================================
+def limpar_nome_servico(servico):
+    """
+    Remove os prefixos 'F - ' e 'M - ' que o sistema UNO adiciona
+    nos serviços (F = Feminino, M = Masculino).
+    Deixa o nome mais limpo e natural na mensagem do cliente.
+    Ex: 'F - Depilação de Axilas cortesia' → 'Depilação de Axilas'
+    Também remove sufixos como 'cortesia', '(área P)', etc.
+    """
+    if pd.isna(servico) or str(servico).strip() == '':
+        return ''
+
+    s = str(servico).strip()
+
+    # Remove prefixo de gênero 'F - ' ou 'M - '
+    s = re.sub(r'^[FM]\s*-\s*', '', s)
+
+    # Remove indicadores de área como '(área P)', '(área M)', '(área G)'
+    s = re.sub(r'\(área\s*[A-Z]\)', '', s, flags=re.IGNORECASE)
+
+    # Remove a palavra 'cortesia' no final (case insensitive)
+    s = re.sub(r'\bcortesia\b', '', s, flags=re.IGNORECASE)
+
+    # Remove espaços duplos e trim
+    s = re.sub(r'\s+', ' ', s).strip()
+
+    # Remove vírgula ou hífen no final se sobrar
+    s = s.rstrip(',-').strip()
+
+    return s
+
+# ============================================================
+# FUNÇÃO: Enviar mensagem via WhatsApp Cloud API
+# ============================================================
 def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
-    """Faz a chamada de API para a Meta enviando o modelo estruturado de forma direta."""
-    url = f"https://graph.facebook.com/v20.0/{ID_TELEFONE_META}/messages"
-    
+    """
+    Faz a chamada de API para a Meta enviando o modelo estruturado
+    na versão nativa v25.0.
+    """
+    url = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
+
     headers = {
         "Authorization": f"Bearer {TOKEN_META}",
         "Content-Type": "application/json"
     }
-    
-    # Força a conversão para string limpa tirando quebras de linha para não quebrar a API
+
+    # Garante que quebras de linha não quebrem a API
     procedimento_limpo = str(procedimento).replace('\n', ' ').replace('\r', '').strip()
-    
+
     payload = {
         "messaging_product": "whatsapp",
         "to": str(telefone_destino),
@@ -58,108 +117,173 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
                 {
                     "type": "body",
                     "parameters": [
-                        {"type": "text", "text": str(nome)},          # {{1}} Nome do cliente
-                        {"type": "text", "text": procedimento_limpo},  # {{2}} Serviço / Procedimentos Agrupados
-                        {"type": "text", "text": str(unidade)}        # {{3}} Nome da unidade vindo do site
+                        {"type": "text", "text": str(nome)},           # {{1}} Nome do cliente
+                        {"type": "text", "text": procedimento_limpo},  # {{2}} Serviço(s) agrupados
+                        {"type": "text", "text": str(unidade)}         # {{3}} Nome da unidade
                     ]
                 }
             ]
         }
     }
-    
+
     try:
         resposta = requests.post(url, headers=headers, json=payload)
         return resposta.status_code, resposta.json()
     except Exception as e:
         return 500, {"error": str(e)}
 
-# SELEÇÃO DE UNIDADE DIRETO NA TELA
-unidade_selecionada = st.selectbox("Selecione a Unidade que está operando hoje:", ["Mogi das Cruzes", "Suzano"])
+# ============================================================
+# INTERFACE — SELEÇÃO DE UNIDADE E NÚMERO DE ALERTA
+# ============================================================
+unidade_selecionada = st.selectbox(
+    "Selecione a Unidade que está operando hoje:",
+    ["Mogi das Cruzes", "Suzano"]
+)
 
-# CAIXA DE TEXTO NO SITE PARA VOCÊ DIGITAR O NÚMERO DE ALERTA QUE QUISER
-numero_alerta_input = st.text_input("Digite o número de WhatsApp que receberá os alertas (com DDD):", value="5511911177883")
+numero_alerta_input = st.text_input(
+    "Digite o número de WhatsApp que receberá os alertas (com DDD):",
+    value="5511911177883"
+)
 
 if numero_alerta_input:
     numero_alerta_formatado = limpar_numero(numero_alerta_input)
     st.info(f"📢 Os alertas de agendamento serão enviados para: {numero_alerta_formatado}")
 
+# ============================================================
+# UPLOAD DA PLANILHA
+# ============================================================
 arquivo_upload = st.file_uploader("Selecione a planilha do UNO (.xlsx)", type=["xlsx"])
 
 if arquivo_upload is not None:
     try:
         df = pd.read_excel(arquivo_upload)
         total_original = len(df)
-        
-        # COLUNAS DO ARQUIVO REAL UNO
+
+        # Colunas obrigatórias que o sistema UNO exporta
         colunas_necessarias = ['Cliente', 'Serviço', 'Telefone']
         verificacao_colunas = all(col in df.columns for col in colunas_necessarias)
-        
+
         if not verificacao_colunas:
-            st.error(f"Atenção: A planilha precisa conter exatamente as colunas: {', '.join(colunas_necessarias)}")
+            st.error(
+                f"❌ Atenção: A planilha precisa conter exatamente as colunas: "
+                f"{', '.join(colunas_necessarias)}\n\n"
+                f"Colunas encontradas: {', '.join(df.columns.tolist())}"
+            )
         else:
-            # 🔄 TRATAMENTO ANTES DO AGRUPAMENTO PARA EVITAR ERROS NO TELEFONE
+            # --------------------------------------------------
+            # ✅ CORREÇÃO 1: Filtrar apenas agendamentos ATIVOS
+            # Ignora registros Cancelados, Faltou, Remarcado etc.
+            # --------------------------------------------------
+            if 'Situação' in df.columns:
+                total_antes_filtro = len(df)
+                df = df[df['Situação'].str.strip().str.lower() == 'agendado']
+                total_filtrados = total_antes_filtro - len(df)
+                if total_filtrados > 0:
+                    st.warning(
+                        f"⚠️ {total_filtrados} registro(s) ignorado(s) por não estarem "
+                        f"com situação 'Agendado' (cancelados, faltou, etc.)."
+                    )
+
+            # --------------------------------------------------
+            # LIMPEZA DOS DADOS
+            # --------------------------------------------------
             df['Cliente'] = df['Cliente'].fillna('').astype(str).str.strip()
-            df['Serviço'] = df['Serviço'].fillna('').astype(str).str.strip()
-            
-            # Limpa cada número individualmente na coluna antes de agrupar
             df['Telefone'] = df['Telefone'].apply(limpar_numero).fillna('').astype(str)
-            
-            # Agrupa os serviços em uma única linha por cliente/telefone separados por vírgula
-            df_agrupado = df.groupby(['Cliente', 'Telefone'])['Serviço'].apply(lambda x: ', '.join(list(set(x)))).reset_index()
+
+            # ✅ CORREÇÃO 2: Limpa prefixos F-/M- e sufixos de área dos serviços
+            df['Serviço'] = df['Serviço'].apply(limpar_nome_servico)
+
+            # Remove linhas onde o serviço ficou vazio após limpeza
+            df = df[df['Serviço'] != '']
+
+            # --------------------------------------------------
+            # AGRUPAMENTO: Une todos os serviços do mesmo cliente
+            # em uma única mensagem separada por vírgula
+            # --------------------------------------------------
+            df_agrupado = (
+                df.groupby(['Cliente', 'Telefone'])['Serviço']
+                .apply(lambda x: ', '.join(sorted(set(x))))
+                .reset_index()
+            )
             df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone']]
             total_agrupado = len(df_agrupado)
-            
-            # Avisos de contagem na tela
-            st.success(f"Planilha carregada com sucesso! Encontrados {total_original} registros originais.")
-            st.info(f"🔄 Agrupamento concluído: Os serviços foram unidos por cliente. No total, serão disparadas apenas {total_agrupado} mensagens.")
-            
-            st.subheader(f"Visualização dos dados para envio ({unidade_selecionada}):")
-            st.dataframe(df_agrupado.head())
-            
-            if st.button("Iniciar Disparos em Massa 🚀"):
+
+            # --------------------------------------------------
+            # EXIBIÇÃO DOS DADOS NA TELA
+            # --------------------------------------------------
+            st.success(
+                f"✅ Planilha carregada com sucesso! "
+                f"{len(df)} registros válidos encontrados."
+            )
+            st.info(
+                f"🔄 Agrupamento concluído: serviços unidos por cliente. "
+                f"Serão disparadas **{total_agrupado}** mensagens."
+            )
+
+            st.subheader(f"Pré-visualização dos disparos ({unidade_selecionada}):")
+            st.dataframe(df_agrupado, use_container_width=True)
+
+            # --------------------------------------------------
+            # BOTÃO DE DISPARO
+            # --------------------------------------------------
+            if st.button("🚀 Iniciar Disparos em Massa"):
                 progresso = st.progress(0)
                 status_texto = st.empty()
-                
+
                 sucessos = 0
                 erros = 0
                 total_linhas = len(df_agrupado)
-                
-                for index, linha in df_agrupado.iterrows():
+
+                for i, (_, linha) in enumerate(df_agrupado.iterrows()):
                     nome_cliente = linha['Cliente']
                     procedimento = linha['Serviço']
-                    celular_puro = linha['Telefone']
-                    
-                    telefone_formatado = celular_puro
-                    
-                    if telefone_formatado and len(telefone_formatado) >= 10:
-                        status_texto.text(f"Enviando para {nome_cliente} ({telefone_formatado})...")
-                        
-                        # Dispara usando a função oficial mapeada
-                        code, res = enviar_mensagem_whatsapp(nome_cliente, procedimento, unidade_selecionada, telefone_formatado)
-                        
-                        if code == 200 or code == 201:
+                    telefone_formatado = linha['Telefone']
+
+                    if telefone_formatado and len(telefone_formatado) >= 12:
+                        status_texto.text(
+                            f"📤 Enviando {i+1}/{total_linhas}: "
+                            f"{nome_cliente} ({telefone_formatado})..."
+                        )
+
+                        code, res = enviar_mensagem_whatsapp(
+                            nome_cliente, procedimento,
+                            unidade_selecionada, telefone_formatado
+                        )
+
+                        if code in (200, 201):
                             sucessos += 1
                         else:
                             erros += 1
-                            st.error(f"❌ Falha ao enviar para {nome_cliente} ({telefone_formatado}) | Código HTTP: {code} | Retorno: {json.dumps(res, ensure_ascii=False)}")
+                            st.error(
+                                f"❌ Falha — {nome_cliente} ({telefone_formatado}) | "
+                                f"HTTP {code} | {json.dumps(res, ensure_ascii=False)}"
+                            )
                     else:
                         erros += 1
-                        st.error(f"⚠️ Número de telefone inválido ou ausente para o cliente: {nome_cliente} (Dado encontrado: {celular_puro})")
-                    
-                    # Controle de delay para respeitar as diretrizes da Meta
+                        st.error(
+                            f"⚠️ Número inválido ou ausente para: "
+                            f"{nome_cliente} (encontrado: '{telefone_formatado}')"
+                        )
+
+                    # Delay para respeitar limites de taxa da Meta
                     time.sleep(1.5)
-                    
-                    # Atualiza a barra de carregamento na tela
-                    progresso.progress((index + 1) / total_linhas)
-                
-                status_texto.text("Processamento concluído!")
+
+                    # Atualiza barra de progresso
+                    progresso.progress((i + 1) / total_linhas)
+
+                status_texto.text("✅ Processamento concluído!")
                 if sucessos > 0:
                     st.balloons()
-                st.success(f"Disparos finalizados! Sucessos: {sucessos} | Erros/Falhas: {erros}")
-                
-    except Exception as erro_geral:
-        st.error(f"Erro ao processar o arquivo: {erro_geral}")
+                st.success(
+                    f"🎉 Disparos finalizados! "
+                    f"✅ Sucessos: {sucessos} | ❌ Erros/Falhas: {erros}"
+                )
 
-# Rodapé de controle interno
+    except Exception as erro_geral:
+        st.error(f"❌ Erro ao processar o arquivo: {erro_geral}")
+
+# ============================================================
+# RODAPÉ
+# ============================================================
 st.markdown("---")
 st.caption("Desenvolvido para uso exclusivo interno da Maislaser.")
