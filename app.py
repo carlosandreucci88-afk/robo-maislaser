@@ -197,19 +197,28 @@ if arquivo_upload is not None:
             # ✅ CORREÇÃO 2: Limpa prefixos F-/M- e sufixos de área dos serviços
             df['Serviço'] = df['Serviço'].apply(limpar_nome_servico)
 
+            # Converte data serial do Excel para horário legível
+            df['Horario'] = pd.to_datetime(df['Data']).dt.strftime('%d/%m/%Y às %Hh%M')
+
             # Remove linhas onde o serviço ficou vazio após limpeza
             df = df[df['Serviço'] != '']
 
             # --------------------------------------------------
             # AGRUPAMENTO: Une todos os serviços do mesmo cliente
-            # em uma única mensagem separada por vírgula
+            # Pega o primeiro horário encontrado por cliente/telefone
             # --------------------------------------------------
-            df_agrupado = (
+            df_servicos = (
                 df.groupby(['Cliente', 'Telefone'])['Serviço']
                 .apply(lambda x: ', '.join(sorted(set(x))))
                 .reset_index()
             )
-            df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone']]
+            df_horario = (
+                df.groupby(['Cliente', 'Telefone'])['Horario']
+                .first()
+                .reset_index()
+            )
+            df_agrupado = df_servicos.merge(df_horario, on=['Cliente', 'Telefone'])
+            df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone', 'Horario']]
             total_agrupado = len(df_agrupado)
 
             # --------------------------------------------------
@@ -249,6 +258,8 @@ if arquivo_upload is not None:
                             f"{nome_cliente} ({telefone_formatado})..."
                         )
 
+                        horario_cliente = linha['Horario']
+
                         code, res = enviar_mensagem_whatsapp(
                             nome_cliente, procedimento,
                             unidade_selecionada, telefone_formatado
@@ -265,6 +276,7 @@ if arquivo_upload is not None:
                                         "nome": nome_cliente,
                                         "servico": procedimento,
                                         "unidade": unidade_selecionada,
+                                        "horario": horario_cliente,
                                         "numero_alerta": numero_alerta_formatado
                                     }, timeout=5)
                                 except Exception:
