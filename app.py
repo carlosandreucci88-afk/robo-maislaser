@@ -296,35 +296,6 @@ if arquivo_upload is not None:
                     f"✅ Sucessos: {sucessos} | ❌ Erros/Falhas: {erros}"
                 )
 
-                # --------------------------------------------------
-                # ✅ ALERTA FINAL: Envia resumo para o número de alerta
-                # --------------------------------------------------
-                if numero_alerta_formatado and len(numero_alerta_formatado) >= 12:
-                    url_alerta = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
-                    headers_alerta = {
-                        "Authorization": f"Bearer {TOKEN_META}",
-                        "Content-Type": "application/json"
-                    }
-                    mensagem_alerta = (
-                        f"✅ *Robô Maislaser — Disparo Concluído*\n\n"
-                        f"📍 Unidade: {unidade_selecionada}\n"
-                        f"📨 Mensagens enviadas: {sucessos}\n"
-                        f"❌ Erros/Falhas: {erros}\n"
-                        f"👥 Total processado: {total_linhas}"
-                    )
-                    payload_alerta = {
-                        "messaging_product": "whatsapp",
-                        "to": numero_alerta_formatado,
-                        "type": "text",
-                        "text": {"body": mensagem_alerta}
-                    }
-                    try:
-                        r = requests.post(url_alerta, headers=headers_alerta, json=payload_alerta)
-                        if r.status_code in (200, 201):
-                            st.info(f"📢 Resumo enviado via WhatsApp para {numero_alerta_formatado}")
-                        else:
-                            st.warning(f"⚠️ Não
-
     except Exception as erro_geral:
         st.error(f"❌ Erro ao processar o arquivo: {erro_geral}")
 
