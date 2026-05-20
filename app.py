@@ -8,7 +8,7 @@ import re
 # ============================================================
 # CONFIGURAÇÕES DA API DO WHATSAPP (v25.0)
 # ============================================================
-TOKEN_META = "EAH5107Jgp0EBRltZCeJHL76gxeAuG6YuH8upLrZBTTL4bMEIWonsmmkJ8eVHzh7kmtnybcFPcrNtTHE8tqWE7F8Gc36bUk8jrdkJTiGQqovfZAj9MKan9du6ZCeXK57wlS0RRKHysVZCERvIYgxTmyuPjfnecoc0SZASDlFzzhnfZBL2FSicYPPWGeKmxM5QYRNMdazZAL6eZB5TfgFuW51QDtqFl5izY0Sluv8ZAuao9ZB23Y2YEMePs1aP0UHQrsaNCZCcYqMiZBEZAq1C9Gkmp4PHob"
+TOKEN_META = "EAH5107Jgp0EBRqYdYtXD9kD2USkbZAZCSh8AaLpC8kX7YvXZBMDz22yTQtQqH5ozWpxRUKFcd6Ys8awcevFXazXn8TT9IHcGJ47Vb4JrvRrLkbX0TGLz5GFahYOG4jOaXcnWp7jKYzhBt1ORsNVl9hVdFwMEjmEvDI6tJr8RRBFZBDrvxROZBP7MLtrncBQZDZD"
 ID_TELEFONE_META = "1083951441475080"
 NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
 
