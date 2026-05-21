@@ -10,7 +10,7 @@ import re
 # ============================================================
 TOKEN_META = "EAH5107Jgp0EBRqYdYtXD9kD2USkbZAZCSh8AaLpC8kX7YvXZBMDz22yTQtQqH5ozWpxRUKFcd6Ys8awcevFXazXn8TT9IHcGJ47Vb4JrvRrLkbX0TGLz5GFahYOG4jOaXcnWp7jKYzhBt1ORsNVl9hVdFwMEjmEvDI6tJr8RRBFZBDrvxROZBP7MLtrncBQZDZD"
 ID_TELEFONE_META = "1083951441475080"
-NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser"
+NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser_v2"
 
 # URL do Google Apps Script (webhook) — preencha após publicar o script
 # Exemplo: "https://script.google.com/macros/s/SEU_ID_AQUI/exec"
@@ -93,10 +93,11 @@ def limpar_nome_servico(servico):
 # ============================================================
 # FUNÇÃO: Enviar mensagem via WhatsApp Cloud API
 # ============================================================
-def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
+def enviar_mensagem_whatsapp(nome, horario, procedimento, unidade, telefone_destino):
     """
     Faz a chamada de API para a Meta enviando o modelo estruturado
     na versão nativa v25.0.
+    Template v2: {{1}} Nome, {{2}} Horário, {{3}} Serviços, {{4}} Unidade
     """
     url = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
 
@@ -122,8 +123,9 @@ def enviar_mensagem_whatsapp(nome, procedimento, unidade, telefone_destino):
                     "type": "body",
                     "parameters": [
                         {"type": "text", "text": str(nome)},           # {{1}} Nome do cliente
-                        {"type": "text", "text": procedimento_limpo},  # {{2}} Serviço(s) agrupados
-                        {"type": "text", "text": str(unidade)}         # {{3}} Nome da unidade
+                        {"type": "text", "text": str(horario)},        # {{2}} Data e horário
+                        {"type": "text", "text": procedimento_limpo},  # {{3}} Serviço(s) agrupados
+                        {"type": "text", "text": str(unidade)}         # {{4}} Nome da unidade
                     ]
                 }
             ]
@@ -144,6 +146,22 @@ unidade_selecionada = st.selectbox(
     ["Mogi das Cruzes", "Suzano"]
 )
 
+# Confirmação da unidade selecionada
+st.warning(f"⚠️ Você selecionou a unidade **{unidade_selecionada}** — está correto?")
+col1, col2 = st.columns(2)
+with col1:
+    confirmar_unidade = st.button(f"✅ Sim, é {unidade_selecionada}", use_container_width=True)
+with col2:
+    corrigir_unidade = st.button("❌ Não, corrigir", use_container_width=True)
+
+if corrigir_unidade:
+    st.error("⬆️ Por favor, corrija a unidade no campo acima antes de continuar.")
+    st.stop()
+
+if not confirmar_unidade:
+    st.info("👆 Confirme a unidade acima para continuar.")
+    st.stop()
+
 numero_alerta_input = st.text_input(
     "Digite o número de WhatsApp que receberá os alertas (com DDD):",
     value=""
@@ -152,6 +170,32 @@ numero_alerta_input = st.text_input(
 if numero_alerta_input:
     numero_alerta_formatado = limpar_numero(numero_alerta_input)
     st.info(f"📢 Os alertas de agendamento serão enviados para: {numero_alerta_formatado}")
+    
+    # Botão para ativar alertas — abre WhatsApp com mensagem pré-pronta
+    numero_robo = "5511911177883"
+    msg_ativacao = "oi"
+    link_whatsapp = f"https://wa.me/{numero_robo}?text={msg_ativacao}"
+    st.markdown(
+        f"""
+        <a href="{link_whatsapp}" target="_blank" style="
+            display: inline-block;
+            background-color: #25D366;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 15px;
+            margin-top: 4px;
+        ">
+        📲 Clique aqui para ativar os alertas no seu WhatsApp
+        </a>
+        <p style="font-size: 12px; color: gray; margin-top: 6px;">
+        ⚠️ Obrigatório antes de iniciar os disparos — envie o "oi" para liberar o recebimento dos alertas.
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ============================================================
 # UPLOAD DA PLANILHA
@@ -288,8 +332,9 @@ if arquivo_upload is not None:
                         tem_2_sessoes = bool(horario2_cliente and horario2_cliente != horario_cliente)
 
                         code, res = enviar_mensagem_whatsapp(
-                            nome_cliente, procedimento,
-                            unidade_selecionada, telefone_formatado
+                            nome_cliente, horario_cliente,
+                            procedimento, unidade_selecionada,
+                            telefone_formatado
                         )
 
                         if code in (200, 201):
