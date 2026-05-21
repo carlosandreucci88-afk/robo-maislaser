@@ -143,24 +143,37 @@ def enviar_mensagem_whatsapp(nome, horario, procedimento, unidade, telefone_dest
 # ============================================================
 unidade_selecionada = st.selectbox(
     "Selecione a Unidade que está operando hoje:",
-    ["Mogi das Cruzes", "Suzano"]
+    ["", "Mogi das Cruzes", "Suzano"],
+    index=0
 )
 
-# Confirmação da unidade selecionada
+if not unidade_selecionada:
+    st.info("👆 Selecione a unidade acima para continuar.")
+    st.stop()
+
+# Confirmação da unidade
 st.warning(f"⚠️ Você selecionou a unidade **{unidade_selecionada}** — está correto?")
 col1, col2 = st.columns(2)
 with col1:
-    confirmar_unidade = st.button(f"✅ Sim, é {unidade_selecionada}", use_container_width=True)
+    confirmar_unidade = st.button(f"✅ Sim, é {unidade_selecionada}", use_container_width=True, key="btn_confirmar_unidade")
 with col2:
-    corrigir_unidade = st.button("❌ Não, corrigir", use_container_width=True)
+    corrigir_unidade = st.button("❌ Não, corrigir", use_container_width=True, key="btn_corrigir_unidade")
 
 if corrigir_unidade:
     st.error("⬆️ Por favor, corrija a unidade no campo acima antes de continuar.")
     st.stop()
 
-if not confirmar_unidade:
-    st.info("👆 Confirme a unidade acima para continuar.")
+if not confirmar_unidade and not st.session_state.get("unidade_confirmada"):
     st.stop()
+
+if confirmar_unidade:
+    st.session_state["unidade_confirmada"] = True
+    st.session_state["unidade_valor"] = unidade_selecionada
+
+# Garante que a unidade confirmada seja usada
+if st.session_state.get("unidade_confirmada"):
+    unidade_selecionada = st.session_state.get("unidade_valor", unidade_selecionada)
+    st.success(f"✅ Unidade **{unidade_selecionada}** confirmada!")
 
 numero_alerta_input = st.text_input(
     "Digite o número de WhatsApp que receberá os alertas (com DDD):",
@@ -169,12 +182,11 @@ numero_alerta_input = st.text_input(
 
 if numero_alerta_input:
     numero_alerta_formatado = limpar_numero(numero_alerta_input)
-    st.info(f"📢 Os alertas de agendamento serão enviados para: {numero_alerta_formatado}")
-    
-    # Botão para ativar alertas — abre WhatsApp com mensagem pré-pronta
+    st.info(f"📢 Os alertas serão enviados para: {numero_alerta_formatado}")
+
+    # Botão verde para ativar alertas
     numero_robo = "5511911177883"
-    msg_ativacao = "oi"
-    link_whatsapp = f"https://wa.me/{numero_robo}?text={msg_ativacao}"
+    link_whatsapp = f"https://wa.me/{numero_robo}?text=oi"
     st.markdown(
         f"""
         <a href="{link_whatsapp}" target="_blank" style="
@@ -191,11 +203,16 @@ if numero_alerta_input:
         📲 Clique aqui para ativar os alertas no seu WhatsApp
         </a>
         <p style="font-size: 12px; color: gray; margin-top: 6px;">
-        ⚠️ Obrigatório antes de iniciar os disparos — envie o "oi" para liberar o recebimento dos alertas.
+        ⚠️ Envie o "oi" antes de iniciar os disparos para receber os alertas.
         </p>
         """,
         unsafe_allow_html=True
     )
+
+    # Confirmação de que enviou o oi
+    alertas_ativados = st.checkbox("✅ Já enviei o 'oi' e estou pronto para disparar!", key="alertas_ativados")
+    if not alertas_ativados:
+        st.stop()
 
 # ============================================================
 # UPLOAD DA PLANILHA
