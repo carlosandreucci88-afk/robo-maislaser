@@ -212,13 +212,35 @@ if arquivo_upload is not None:
                 .apply(lambda x: ', '.join(sorted(set(x))))
                 .reset_index()
             )
-            df_horario = (
+            # Pega horários distintos por cliente
+            df_horarios = (
                 df.groupby(['Cliente', 'Telefone'])['Horario']
-                .first()
+                .apply(lambda x: sorted(set(x)))
                 .reset_index()
             )
-            df_agrupado = df_servicos.merge(df_horario, on=['Cliente', 'Telefone'])
-            df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone', 'Horario']]
+            df_horarios['Horario'] = df_horarios['Horario'].apply(lambda x: x[0])
+            df_horarios['Horario2'] = df_horarios['Horario'].apply(
+                lambda x: x[1] if len(x) > 1 else ""
+            ) if df_horarios['Horario'].apply(lambda x: isinstance(x, list)).any() else ""
+
+            # Recalcula corretamente
+            df_horarios2 = df.groupby(['Cliente', 'Telefone'])['Horario'].apply(lambda x: sorted(set(x))).reset_index()
+            df_horarios2['Horario2'] = df_horarios2['Horario'].apply(lambda x: x[1] if len(x) > 1 else "")
+            df_horarios2['Horario'] = df_horarios2['Horario'].apply(lambda x: x[0])
+
+            # Serviço por horário (para 2 sessões)
+            df_srv_horario = df.groupby(['Cliente', 'Telefone', 'Horario'])['Serviço'].apply(
+                lambda x: ', '.join(sorted(set(x)))
+            ).reset_index()
+            df_srv_h1 = df_srv_horario.groupby(['Cliente','Telefone']).first().reset_index()[['Cliente','Telefone','Serviço']]
+            df_srv_h2 = df_srv_horario.groupby(['Cliente','Telefone']).apply(
+                lambda x: x.iloc[1]['Serviço'] if len(x) > 1 else ""
+            ).reset_index().rename(columns={0:'Servico2'})
+
+            df_agrupado = df_servicos.merge(df_horarios2[['Cliente','Telefone','Horario','Horario2']], on=['Cliente','Telefone'])
+            df_agrupado = df_agrupado.merge(df_srv_h2, on=['Cliente','Telefone'], how='left')
+            df_agrupado['Servico2'] = df_agrupado['Servico2'].fillna("")
+            df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone', 'Horario', 'Horario2', 'Servico2']]
             total_agrupado = len(df_agrupado)
 
             # --------------------------------------------------
@@ -258,7 +280,12 @@ if arquivo_upload is not None:
                             f"{nome_cliente} ({telefone_formatado})..."
                         )
 
-                        horario_cliente = linha['Horario']
+                        horario_cliente  = linha['Horario']
+                        horario2_cliente = linha.get('Horario2', '')
+                        servico2_cliente = linha.get('Servico2', '')
+
+                        # Se tem 2 horários diferentes — manda mensagem especial
+                        tem_2_sessoes = bool(horario2_cliente and horario2_cliente != horario_cliente)
 
                         code, res = enviar_mensagem_whatsapp(
                             nome_cliente, procedimento,
@@ -277,6 +304,8 @@ if arquivo_upload is not None:
                                         "servico": procedimento,
                                         "unidade": unidade_selecionada,
                                         "horario": horario_cliente,
+                                        "horario2": horario2_cliente,
+                                        "servico2": servico2_cliente,
                                         "numero_alerta": numero_alerta_formatado
                                     }, timeout=5)
                                 except Exception:
