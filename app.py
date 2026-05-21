@@ -10,7 +10,8 @@ import re
 # ============================================================
 TOKEN_META = "EAH5107Jgp0EBRqYdYtXD9kD2USkbZAZCSh8AaLpC8kX7YvXZBMDz22yTQtQqH5ozWpxRUKFcd6Ys8awcevFXazXn8TT9IHcGJ47Vb4JrvRrLkbX0TGLz5GFahYOG4jOaXcnWp7jKYzhBt1ORsNVl9hVdFwMEjmEvDI6tJr8RRBFZBDrvxROZBP7MLtrncBQZDZD"
 ID_TELEFONE_META = "1083951441475080"
-NOME_MODELO_MENSAGEM = "confirmacao_agenda_maislaser_v2"
+NOME_MODELO_MENSAGEM        = "confirmacao_agenda_maislaser_v2"
+NOME_MODELO_MENSAGEM_2SESS  = "confirmacao_agenda_maislaser_2sessoes"
 
 # URL do Google Apps Script (webhook) — preencha após publicar o script
 # Exemplo: "https://script.google.com/macros/s/SEU_ID_AQUI/exec"
@@ -132,6 +133,47 @@ def enviar_mensagem_whatsapp(nome, horario, procedimento, unidade, telefone_dest
         }
     }
 
+    try:
+        resposta = requests.post(url, headers=headers, json=payload)
+        return resposta.status_code, resposta.json()
+    except Exception as e:
+        return 500, {"error": str(e)}
+
+# ============================================================
+# FUNÇÃO: Enviar mensagem de 2 sessões via WhatsApp Cloud API
+# ============================================================
+def enviar_mensagem_2sessoes(nome, horario1, servico1, horario2, servico2, unidade, telefone_destino):
+    """
+    Dispara o template especial para clientes com 2 sessões no mesmo dia.
+    Template: {{1}} Nome, {{2}} Horário1, {{3}} Serviço1, {{4}} Horário2, {{5}} Serviço2, {{6}} Unidade
+    """
+    url = f"https://graph.facebook.com/v25.0/{ID_TELEFONE_META}/messages"
+    headers = {
+        "Authorization": f"Bearer {TOKEN_META}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": str(telefone_destino),
+        "type": "template",
+        "template": {
+            "name": NOME_MODELO_MENSAGEM_2SESS,
+            "language": {"code": "pt_BR"},
+            "components": [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": str(nome)},
+                        {"type": "text", "text": str(horario1)},
+                        {"type": "text", "text": str(servico1).replace('\n', ' ').strip()},
+                        {"type": "text", "text": str(horario2)},
+                        {"type": "text", "text": str(servico2).replace('\n', ' ').strip()},
+                        {"type": "text", "text": str(unidade)}
+                    ]
+                }
+            ]
+        }
+    }
     try:
         resposta = requests.post(url, headers=headers, json=payload)
         return resposta.status_code, resposta.json()
@@ -345,14 +387,22 @@ if arquivo_upload is not None:
                         horario2_cliente = linha.get('Horario2', '')
                         servico2_cliente = linha.get('Servico2', '')
 
-                        # Se tem 2 horários diferentes — manda mensagem especial
+                        # Detecta se tem 2 sessões no mesmo dia
                         tem_2_sessoes = bool(horario2_cliente and horario2_cliente != horario_cliente)
 
-                        code, res = enviar_mensagem_whatsapp(
-                            nome_cliente, horario_cliente,
-                            procedimento, unidade_selecionada,
-                            telefone_formatado
-                        )
+                        if tem_2_sessoes:
+                            code, res = enviar_mensagem_2sessoes(
+                                nome_cliente,
+                                horario_cliente, procedimento,
+                                horario2_cliente, servico2_cliente,
+                                unidade_selecionada, telefone_formatado
+                            )
+                        else:
+                            code, res = enviar_mensagem_whatsapp(
+                                nome_cliente, horario_cliente,
+                                procedimento, unidade_selecionada,
+                                telefone_formatado
+                            )
 
                         if code in (200, 201):
                             sucessos += 1
