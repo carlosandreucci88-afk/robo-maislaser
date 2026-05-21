@@ -320,8 +320,8 @@ if arquivo_upload is not None:
             df_horarios = df.groupby(['Cliente', 'Telefone'])['Horario'].apply(
                 lambda x: sorted(set(x))
             ).reset_index()
-            df_horarios['Horario']  = df_horarios['Horario'].apply(lambda x: x[0])
             df_horarios['Horario2'] = df_horarios['Horario'].apply(lambda x: x[1] if len(x) > 1 else "")
+            df_horarios['Horario']  = df_horarios['Horario'].apply(lambda x: x[0])
 
             # Serviços da sessão 1 (primeiro horário)
             df_srv_h1 = df_srv_horario.groupby(['Cliente', 'Telefone']).first().reset_index()[['Cliente', 'Telefone', 'Serviço']]
