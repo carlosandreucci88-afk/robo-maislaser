@@ -307,41 +307,33 @@ if arquivo_upload is not None:
             df = df[df['Serviço'] != '']
 
             # --------------------------------------------------
-            # AGRUPAMENTO: Une todos os serviços do mesmo cliente
-            # Pega o primeiro horário encontrado por cliente/telefone
+            # AGRUPAMENTO: Serviços agrupados POR HORÁRIO
+            # Cada linha = 1 cliente com seus horários e serviços corretos
             # --------------------------------------------------
-            df_servicos = (
-                df.groupby(['Cliente', 'Telefone'])['Serviço']
-                .apply(lambda x: ', '.join(sorted(set(x))))
-                .reset_index()
-            )
-            # Pega horários distintos por cliente
-            df_horarios = (
-                df.groupby(['Cliente', 'Telefone'])['Horario']
-                .apply(lambda x: sorted(set(x)))
-                .reset_index()
-            )
-            df_horarios['Horario'] = df_horarios['Horario'].apply(lambda x: x[0])
-            df_horarios['Horario2'] = df_horarios['Horario'].apply(
-                lambda x: x[1] if len(x) > 1 else ""
-            ) if df_horarios['Horario'].apply(lambda x: isinstance(x, list)).any() else ""
 
-            # Recalcula corretamente
-            df_horarios2 = df.groupby(['Cliente', 'Telefone'])['Horario'].apply(lambda x: sorted(set(x))).reset_index()
-            df_horarios2['Horario2'] = df_horarios2['Horario'].apply(lambda x: x[1] if len(x) > 1 else "")
-            df_horarios2['Horario'] = df_horarios2['Horario'].apply(lambda x: x[0])
-
-            # Serviço por horário (para 2 sessões)
+            # Agrupa serviços por Cliente + Telefone + Horario (respeita sessões diferentes)
             df_srv_horario = df.groupby(['Cliente', 'Telefone', 'Horario'])['Serviço'].apply(
                 lambda x: ', '.join(sorted(set(x)))
             ).reset_index()
-            df_srv_h1 = df_srv_horario.groupby(['Cliente','Telefone']).first().reset_index()[['Cliente','Telefone','Serviço']]
-            df_srv_h2 = df_srv_horario.groupby(['Cliente','Telefone']).apply(
-                lambda x: x.iloc[1]['Serviço'] if len(x) > 1 else ""
-            ).reset_index().rename(columns={0:'Servico2'})
 
-            df_agrupado = df_servicos.merge(df_horarios2[['Cliente','Telefone','Horario','Horario2']], on=['Cliente','Telefone'])
-            df_agrupado = df_agrupado.merge(df_srv_h2, on=['Cliente','Telefone'], how='left')
+            # Pega horários distintos ordenados por cliente
+            df_horarios = df.groupby(['Cliente', 'Telefone'])['Horario'].apply(
+                lambda x: sorted(set(x))
+            ).reset_index()
+            df_horarios['Horario']  = df_horarios['Horario'].apply(lambda x: x[0])
+            df_horarios['Horario2'] = df_horarios['Horario'].apply(lambda x: x[1] if len(x) > 1 else "")
+
+            # Serviços da sessão 1 (primeiro horário)
+            df_srv_h1 = df_srv_horario.groupby(['Cliente', 'Telefone']).first().reset_index()[['Cliente', 'Telefone', 'Serviço']]
+
+            # Serviços da sessão 2 (segundo horário, se existir)
+            df_srv_h2 = df_srv_horario.groupby(['Cliente', 'Telefone']).apply(
+                lambda x: x.iloc[1]['Serviço'] if len(x) > 1 else ""
+            ).reset_index().rename(columns={0: 'Servico2'})
+
+            # Monta dataframe final com serviços corretos por sessão
+            df_agrupado = df_srv_h1.merge(df_horarios[['Cliente', 'Telefone', 'Horario', 'Horario2']], on=['Cliente', 'Telefone'])
+            df_agrupado = df_agrupado.merge(df_srv_h2, on=['Cliente', 'Telefone'], how='left')
             df_agrupado['Servico2'] = df_agrupado['Servico2'].fillna("")
             df_agrupado = df_agrupado[['Cliente', 'Serviço', 'Telefone', 'Horario', 'Horario2', 'Servico2']]
             total_agrupado = len(df_agrupado)
