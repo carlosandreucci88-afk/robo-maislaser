@@ -267,16 +267,62 @@ if arquivo_upload is not None:
         total_original = len(df)
 
         # Colunas obrigatórias que o sistema UNO exporta
-        colunas_necessarias = ['Cliente', 'Serviço', 'Telefone']
-        verificacao_colunas = all(col in df.columns for col in colunas_necessarias)
+        # Colunas essenciais para o disparo funcionar
+        colunas_essenciais = ['Data', 'Cliente', 'Telefone', 'Serviço']
+        colunas_encontradas = df.columns.tolist()
 
-        if not verificacao_colunas:
-            st.error(
-                f"❌ Atenção: A planilha precisa conter exatamente as colunas: "
-                f"{', '.join(colunas_necessarias)}\n\n"
-                f"Colunas encontradas: {', '.join(df.columns.tolist())}"
-            )
-        else:
+        # --------------------------------------------------
+        # VALIDAÇÃO VISUAL DAS COLUNAS
+        # --------------------------------------------------
+        st.subheader("🔍 Validação da Planilha")
+
+        linhas_html = ""
+        todas_ok = True
+        for col in colunas_essenciais:
+            if col in colunas_encontradas:
+                status_icon  = "✅"
+                status_texto = "Encontrada"
+                cor_bg       = "#e8f5e9"
+                cor_txt      = "#1b5e20"
+            else:
+                status_icon  = "❌"
+                status_texto = "NÃO ENCONTRADA"
+                cor_bg       = "#ffebee"
+                cor_txt      = "#b71c1c"
+                todas_ok = False
+            linhas_html += f"""
+            <tr style="background:{cor_bg}">
+                <td style="padding:8px 14px;font-weight:bold;color:{cor_txt}">{status_icon} {col}</td>
+                <td style="padding:8px 14px;color:{cor_txt}">{status_texto}</td>
+            </tr>"""
+
+        st.markdown(f"""
+        <table style="width:100%;border-collapse:collapse;border-radius:8px;overflow:hidden;font-size:15px;margin-bottom:12px">
+            <thead>
+                <tr style="background:#1565c0;color:white">
+                    <th style="padding:10px 14px;text-align:left">Coluna</th>
+                    <th style="padding:10px 14px;text-align:left">Status</th>
+                </tr>
+            </thead>
+            <tbody>{linhas_html}</tbody>
+        </table>
+        """, unsafe_allow_html=True)
+
+        # Colunas extras encontradas (além das essenciais)
+        extras = [c for c in colunas_encontradas if c not in colunas_essenciais]
+        if extras:
+            st.info(f"ℹ️ Colunas extras encontradas (ignoradas): {', '.join(extras)}")
+
+        if not todas_ok:
+            st.error("🚫 **Disparo bloqueado!** Corrija a planilha antes de continuar — uma ou mais colunas essenciais estão ausentes.")
+            st.stop()
+
+        st.success("✅ Todas as colunas essenciais foram encontradas! Planilha válida.")
+
+        colunas_necessarias = ['Cliente', 'Serviço', 'Telefone']
+        verificacao_colunas = True
+
+        if True:
             # --------------------------------------------------
             # ✅ CORREÇÃO 1: Filtrar apenas agendamentos ATIVOS
             # Ignora registros Cancelados, Faltou, Remarcado etc.
