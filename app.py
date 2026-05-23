@@ -10,8 +10,8 @@ import re
 # ============================================================
 TOKEN_META = "EAH5107Jgp0EBRqYdYtXD9kD2USkbZAZCSh8AaLpC8kX7YvXZBMDz22yTQtQqH5ozWpxRUKFcd6Ys8awcevFXazXn8TT9IHcGJ47Vb4JrvRrLkbX0TGLz5GFahYOG4jOaXcnWp7jKYzhBt1ORsNVl9hVdFwMEjmEvDI6tJr8RRBFZBDrvxROZBP7MLtrncBQZDZD"
 ID_TELEFONE_META = "1083951441475080"
-NOME_MODELO_MENSAGEM        = "confirmacao_agenda_maislaser_v2"
-NOME_MODELO_MENSAGEM_2SESS  = "confirmacao_agenda_maislaser_2sessoes"
+NOME_MODELO_MENSAGEM        = "confirmacao_agenda_maislaser_v4"
+NOME_MODELO_MENSAGEM_2SESS  = "confirmacao_agenda_maislaser_2sessoes_v2"
 
 # URL do Google Apps Script (webhook) — preencha após publicar o script
 # Exemplo: "https://script.google.com/macros/s/SEU_ID_AQUI/exec"
